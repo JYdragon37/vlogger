@@ -12,8 +12,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Audio } from "expo-av";
-import * as FileSystem from "expo-file-system/legacy";
+// expo-av / expo-file-system은 네이티브 모듈 필요 → 새 EAS 빌드 전까지 lazy require로 크래시 방지
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Audio: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let FileSystem: any = null;
+try {
+  Audio = require("expo-av").Audio;
+  FileSystem = require("expo-file-system/legacy");
+} catch {
+  // 네이티브 모듈 미포함 빌드 — Emma 전화 기능 비활성화
+}
 import { useAppStore } from "@/store/useAppStore";
 import { generateVlogScript, type ScriptResult } from "@/lib/openai";
 import {
@@ -79,8 +88,8 @@ function EmmaCallModal({
   const [emmaText, setEmmaText] = useState("연결 중...");
 
   const sessionRef = useRef<EmmaSession | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const recordingRef = useRef<any>(null);
+  const soundRef = useRef<any>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioDeltasRef = useRef<string[]>([]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -218,19 +227,19 @@ function EmmaCallModal({
     if (isRecording) return;
     try {
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true });
-      const { recording } = await Audio.Recording.createAsync({
+      const recordingOptions = {
         android: {
           extension: ".wav",
-          outputFormat: Audio.AndroidOutputFormat.DEFAULT,
-          audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+          outputFormat: 0,  // DEFAULT
+          audioEncoder: 0,  // DEFAULT
           sampleRate: 24000,
           numberOfChannels: 1,
           bitRate: 384000,
         },
         ios: {
           extension: ".wav",
-          outputFormat: Audio.IOSOutputFormat.LINEARPCM,
-          audioQuality: Audio.IOSAudioQuality.MAX,
+          outputFormat: "lpcm" as const,  // LinearPCM
+          audioQuality: 127,              // MAX
           sampleRate: 24000,
           numberOfChannels: 1,
           bitRate: 384000,
@@ -239,7 +248,8 @@ function EmmaCallModal({
           linearPCMIsFloat: false,
         },
         web: {},
-      });
+      };
+      const { recording } = await Audio.Recording.createAsync(recordingOptions);
       recordingRef.current = recording;
       setIsRecording(true);
       setCallStatus("user_speaking");
@@ -520,7 +530,16 @@ export default function LessonScreen() {
             </View>
 
             {/* Emma Call Button */}
-            <Pressable style={s.callBtn} onPress={() => setCallVisible(true)}>
+            <Pressable
+              style={[s.callBtn, !Audio && s.callBtnUnavailable]}
+              onPress={() => {
+                if (!Audio) {
+                  Alert.alert("업데이트 필요", "Emma 전화영어는 새 빌드 설치 후 사용할 수 있어요.");
+                  return;
+                }
+                setCallVisible(true);
+              }}
+            >
               <View style={s.callBtnIcon}>
                 <Ionicons name="call" size={22} color={C.white} />
               </View>
@@ -649,6 +668,7 @@ const s = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22,
     backgroundColor: C.green, alignItems: "center", justifyContent: "center",
   },
+  callBtnUnavailable: { opacity: 0.5 },
   callBtnTitle: { color: C.white, fontSize: 16, fontWeight: "700" },
   callBtnSub: { color: C.gray2, fontSize: 12, marginTop: 2 },
 
