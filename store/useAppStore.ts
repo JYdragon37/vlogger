@@ -28,6 +28,9 @@ export interface Episode {
   wpm: number;
   seriesName: string | null;
   seriesOrder: number | null;
+  seriesTotal: number | null;
+  durationMinutes: number;
+  emoji: string;
 }
 
 export interface ChannelInfo {
@@ -68,6 +71,123 @@ interface AppState {
   setIsOnboarded: (onboarded: boolean) => void;
 }
 
+// ─── Dummy Episodes (PRD Day 1~15 시뮬레이션) ─────────
+
+const dummyEpisodes: Episode[] = [
+  {
+    id: "ep-15",
+    title: "Gangnam Brunch Date",
+    thumbnailUrl: null,
+    date: "2026-04-08",
+    expressionsUsed: 5,
+    expressionsTotal: 5,
+    wpm: 42,
+    seriesName: "Travel Series",
+    seriesOrder: 1,
+    seriesTotal: 3,
+    durationMinutes: 15,
+    emoji: "🍳",
+  },
+  {
+    id: "ep-14",
+    title: "New Gym Routine",
+    thumbnailUrl: null,
+    date: "2026-04-07",
+    expressionsUsed: 4,
+    expressionsTotal: 5,
+    wpm: 40,
+    seriesName: null,
+    seriesOrder: null,
+    seriesTotal: null,
+    durationMinutes: 15,
+    emoji: "💪",
+  },
+  {
+    id: "ep-13",
+    title: "Shopping Mall Haul 3/3",
+    thumbnailUrl: null,
+    date: "2026-04-04",
+    expressionsUsed: 5,
+    expressionsTotal: 5,
+    wpm: 41,
+    seriesName: "Shopping Mall",
+    seriesOrder: 3,
+    seriesTotal: 3,
+    durationMinutes: 15,
+    emoji: "🛍️",
+  },
+  {
+    id: "ep-12",
+    title: "Shopping Mall Haul 2/3",
+    thumbnailUrl: null,
+    date: "2026-04-02",
+    expressionsUsed: 4,
+    expressionsTotal: 5,
+    wpm: 39,
+    seriesName: "Shopping Mall",
+    seriesOrder: 2,
+    seriesTotal: 3,
+    durationMinutes: 15,
+    emoji: "🛒",
+  },
+  {
+    id: "ep-11",
+    title: "Shopping Mall Haul 1/3",
+    thumbnailUrl: null,
+    date: "2026-03-31",
+    expressionsUsed: 3,
+    expressionsTotal: 5,
+    wpm: 38,
+    seriesName: "Shopping Mall",
+    seriesOrder: 1,
+    seriesTotal: 3,
+    durationMinutes: 10,
+    emoji: "🏬",
+  },
+  {
+    id: "ep-10",
+    title: "Friday Night Out",
+    thumbnailUrl: null,
+    date: "2026-03-28",
+    expressionsUsed: 4,
+    expressionsTotal: 5,
+    wpm: 37,
+    seriesName: null,
+    seriesOrder: null,
+    seriesTotal: null,
+    durationMinutes: 15,
+    emoji: "🌙",
+  },
+  {
+    id: "ep-09",
+    title: "Midweek Coffee Run",
+    thumbnailUrl: null,
+    date: "2026-03-27",
+    expressionsUsed: 5,
+    expressionsTotal: 5,
+    wpm: 36,
+    seriesName: null,
+    seriesOrder: null,
+    seriesTotal: null,
+    durationMinutes: 10,
+    emoji: "☕",
+  },
+  {
+    id: "ep-08",
+    title: "Monday Morning Routine",
+    thumbnailUrl: null,
+    date: "2026-03-25",
+    expressionsUsed: 4,
+    expressionsTotal: 5,
+    wpm: 31,
+    seriesName: null,
+    seriesOrder: null,
+    seriesTotal: null,
+    durationMinutes: 10,
+    emoji: "☀️",
+  },
+];
+
 // ─── Default Values ──────────────────────────────────────
 
 const defaultUserProfile: UserProfile = {
@@ -81,11 +201,11 @@ const defaultUserProfile: UserProfile = {
 
 const defaultChannelInfo: ChannelInfo = {
   channelName: "JW's Seoul Vlog",
-  subscriberCount: 0,
-  episodes: [],
-  badge: "none",
-  streakDays: 0,
-  totalTalkTimeMinutes: 0,
+  subscriberCount: 12400,
+  episodes: dummyEpisodes,
+  badge: "bronze",
+  streakDays: 15,
+  totalTalkTimeMinutes: 165,
 };
 
 const defaultLessonSchedule: LessonSchedule = {
