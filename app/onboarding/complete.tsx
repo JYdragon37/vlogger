@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useAppStore } from "@/store/useAppStore";
+import { saveUserData } from "@/lib/firestore";
 
 const C = {
   bg: "#0F0F0F",
@@ -24,6 +25,10 @@ export default function CompleteScreen() {
   const setIsOnboarded = useAppStore((s) => s.setIsOnboarded);
   const channelName = useAppStore((s) => s.channelInfo.channelName);
   const userName = useAppStore((s) => s.userProfile.name);
+  const user = useAppStore((s) => s.user);
+  const userProfile = useAppStore((s) => s.userProfile);
+  const channelInfo = useAppStore((s) => s.channelInfo);
+  const lessonSchedule = useAppStore((s) => s.lessonSchedule);
 
   const [phase, setPhase] = useState<"loading" | "done">("loading");
 
@@ -46,6 +51,22 @@ export default function CompleteScreen() {
 
     // After 2 seconds, switch to "done" phase
     const timer = setTimeout(() => {
+      // Firestore에 유저 데이터 저장 (fire and forget)
+      if (user?.uid) {
+        saveUserData(user.uid, {
+          profile: userProfile,
+          channelMeta: {
+            channelName: channelInfo.channelName,
+            subscriberCount: channelInfo.subscriberCount,
+            badge: channelInfo.badge,
+            streakDays: channelInfo.streakDays,
+            totalTalkTimeMinutes: channelInfo.totalTalkTimeMinutes,
+          },
+          lessonSchedule,
+          isOnboarded: true,
+        }).catch((err) => console.error("Firestore save failed:", err));
+      }
+
       setPhase("done");
 
       // Fade in + scale up done content
