@@ -176,9 +176,12 @@ export function buildWavHeader(dataByteLength: number): Uint8Array {
 }
 
 // ─── base64 PCM16 → WAV base64 변환 ─────────────────────
+// 각 delta를 개별 디코딩 후 binary 레벨에서 합산 (base64 문자열 직접 join 시 padding 오류)
 export function pcm16DeltasToWavBase64(deltas: string[]): string {
-  const pcmBase64 = deltas.join("");
-  const pcmBinary = atob(pcmBase64);
+  let pcmBinary = "";
+  for (const delta of deltas) {
+    pcmBinary += atob(delta);
+  }
   const pcmBytes = new Uint8Array(pcmBinary.length);
   for (let i = 0; i < pcmBinary.length; i++) {
     pcmBytes[i] = pcmBinary.charCodeAt(i);

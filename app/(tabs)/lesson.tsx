@@ -78,7 +78,7 @@ function EmmaCallModal({
   onEnd: () => void;
 }) {
   const [callStatus, setCallStatus] = useState<
-    "connecting" | "active" | "emma_speaking" | "user_speaking" | "ended"
+    "connecting" | "active" | "processing" | "emma_speaking" | "user_speaking" | "ended"
   >("connecting");
   const [transcript, setTranscript] = useState<
     { role: "emma" | "user"; text: string }[]
@@ -96,7 +96,7 @@ function EmmaCallModal({
 
   // 통화 시간 타이머
   useEffect(() => {
-    if (callStatus === "active" || callStatus === "emma_speaking" || callStatus === "user_speaking") {
+    if (callStatus === "active" || callStatus === "processing" || callStatus === "emma_speaking" || callStatus === "user_speaking") {
       timerRef.current = setInterval(() => setCallSeconds((s) => s + 1), 1000);
     }
     return () => {
@@ -261,7 +261,7 @@ function EmmaCallModal({
   const stopRecording = async () => {
     if (!isRecording || !recordingRef.current) return;
     setIsRecording(false);
-    setCallStatus("emma_speaking");
+    setCallStatus("processing"); // 서버 응답 대기 중 (audio_delta 수신 시 emma_speaking으로 전환)
 
     try {
       await recordingRef.current.stopAndUnloadAsync();
@@ -286,8 +286,10 @@ function EmmaCallModal({
 
   const endCall = async () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    if (isRecording && recordingRef.current) {
+    // isRecording state는 cleanup closure에서 stale할 수 있으므로 ref로 체크
+    if (recordingRef.current) {
       await recordingRef.current.stopAndUnloadAsync().catch(() => {});
+      recordingRef.current = null;
     }
     if (soundRef.current) {
       await soundRef.current.unloadAsync().catch(() => {});
@@ -323,6 +325,7 @@ function EmmaCallModal({
           <Text style={s.emmaStatusText}>
             {callStatus === "connecting" && "연결 중..."}
             {callStatus === "active" && "대기 중"}
+            {callStatus === "processing" && "생각하는 중..."}
             {callStatus === "emma_speaking" && "말하는 중..."}
             {callStatus === "user_speaking" && "듣는 중..."}
           </Text>
