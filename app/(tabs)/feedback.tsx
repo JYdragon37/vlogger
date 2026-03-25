@@ -1,68 +1,45 @@
-import { View, Text } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppStore } from "@/store/useAppStore";
 
+const C = { bg: "#0F0F0F", card: "#1A1A1A", white: "#FFF", gray1: "#AAA", gray2: "#888", gray4: "#555" };
+
 export default function FeedbackScreen() {
   const { channelInfo } = useAppStore();
-  const hasEpisodes = channelInfo.episodes.length > 0;
+  const has = channelInfo.episodes.length > 0;
+
+  const preview = [
+    { label: "표현 사용 트래킹", value: "5개 중 ?/5" },
+    { label: "WPM (분당 단어)", value: "측정 전" },
+    { label: "개선 포인트", value: "5가지" },
+    { label: "구독자 증가", value: "+100명" },
+  ];
 
   return (
-    <SafeAreaView className="flex-1 bg-vlogger-black">
-      <View className="flex-1 px-5 pt-4">
-        {/* Header */}
-        <Text className="text-white text-xl font-bold mb-6">피드백</Text>
+    <SafeAreaView style={s.safe}>
+      <View style={s.wrap}>
+        <Text style={s.title}>피드백</Text>
 
-        {hasEpisodes ? (
-          /* Feedback Report (placeholder for when episodes exist) */
-          <View className="bg-vlogger-dark rounded-2xl p-5">
-            <Text className="text-white text-base font-semibold mb-3">
-              최근 수업 리포트
-            </Text>
-            <Text className="text-vlogger-gray text-sm">
-              수업 리포트가 여기에 표시됩니다.
-            </Text>
+        {has ? (
+          <View style={s.card}>
+            <Text style={s.cardTitle}>최근 수업 리포트</Text>
+            <Text style={s.cardSub}>수업 리포트가 여기에 표시됩니다.</Text>
           </View>
         ) : (
-          /* Empty State */
-          <View className="flex-1 items-center justify-center">
-            <View className="w-24 h-24 rounded-full bg-vlogger-dark items-center justify-center mb-5">
-              <Ionicons
-                name="chatbubble-ellipses-outline"
-                size={44}
-                color="#AAAAAA"
-              />
+          <View style={s.emptyWrap}>
+            <View style={s.emptyIcon}>
+              <Ionicons name="chatbubble-ellipses-outline" size={44} color={C.gray1} />
             </View>
-            <Text className="text-white text-lg font-semibold mb-2">
-              아직 피드백이 없습니다
-            </Text>
-            <Text className="text-vlogger-gray text-sm text-center leading-5">
-              첫 수업을 완료하면{"\n"}
-              상세한 피드백 리포트를 확인할 수 있어요
-            </Text>
+            <Text style={s.emptyTitle}>아직 피드백이 없습니다</Text>
+            <Text style={s.emptySub}>첫 수업을 완료하면{"\n"}상세한 피드백 리포트를 확인할 수 있어요</Text>
 
-            {/* Example Report Preview */}
-            <View className="bg-vlogger-dark rounded-2xl p-5 mt-8 w-full">
-              <Text className="text-vlogger-gray text-xs font-semibold mb-3 uppercase tracking-wider">
-                피드백 리포트 미리보기
-              </Text>
-
-              {[
-                { label: "표현 사용 트래킹", value: "5개 중 ?/5" },
-                { label: "WPM (분당 단어)", value: "측정 전" },
-                { label: "개선 포인트", value: "5가지" },
-                { label: "구독자 증가", value: "+100명" },
-              ].map((item, i) => (
-                <View
-                  key={i}
-                  className="flex-row items-center justify-between py-2.5 border-b border-vlogger-black"
-                >
-                  <Text className="text-vlogger-gray text-sm">
-                    {item.label}
-                  </Text>
-                  <Text className="text-white text-sm font-medium">
-                    {item.value}
-                  </Text>
+            <View style={s.previewCard}>
+              <Text style={s.previewTitle}>피드백 리포트 미리보기</Text>
+              {preview.map((item, i) => (
+                <View key={i} style={s.previewRow}>
+                  <Text style={s.previewLabel}>{item.label}</Text>
+                  <Text style={s.previewValue}>{item.value}</Text>
                 </View>
               ))}
             </View>
@@ -72,3 +49,21 @@ export default function FeedbackScreen() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.bg },
+  wrap: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
+  title: { color: C.white, fontSize: 22, fontWeight: "800", marginBottom: 24 },
+  card: { backgroundColor: C.card, borderRadius: 16, padding: 20 },
+  cardTitle: { color: C.white, fontSize: 16, fontWeight: "600", marginBottom: 12 },
+  cardSub: { color: C.gray2, fontSize: 14 },
+  emptyWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
+  emptyIcon: { width: 96, height: 96, borderRadius: 48, backgroundColor: C.card, alignItems: "center", justifyContent: "center", marginBottom: 20 },
+  emptyTitle: { color: C.white, fontSize: 18, fontWeight: "600", marginBottom: 8 },
+  emptySub: { color: C.gray2, fontSize: 14, textAlign: "center", lineHeight: 20 },
+  previewCard: { backgroundColor: C.card, borderRadius: 16, padding: 20, marginTop: 32, width: "100%" },
+  previewTitle: { color: C.gray2, fontSize: 11, fontWeight: "700", textTransform: "uppercase", letterSpacing: 2, marginBottom: 12 },
+  previewRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.bg },
+  previewLabel: { color: C.gray2, fontSize: 14 },
+  previewValue: { color: C.white, fontSize: 14, fontWeight: "500" },
+});

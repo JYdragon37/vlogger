@@ -1,4 +1,11 @@
-import { View, Text, ScrollView, Pressable, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  Dimensions,
+  StyleSheet,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppStore, type Episode } from "@/store/useAppStore";
@@ -8,160 +15,97 @@ const CARD_GAP = 10;
 const CARD_PADDING = 16;
 const CARD_WIDTH = (SCREEN_WIDTH - CARD_PADDING * 2 - CARD_GAP) / 2;
 
+// ─── Colors ──────────────────────────────────────────────
+
+const C = {
+  bg: "#0F0F0F",
+  card: "#1A1A1A",
+  card2: "#1E1E1E",
+  card3: "#2A2A2A",
+  border: "#222",
+  red: "#FF0000",
+  white: "#FFFFFF",
+  gray1: "#AAA",
+  gray2: "#888",
+  gray3: "#666",
+  gray4: "#555",
+  gray5: "#444",
+  gray6: "#333",
+  bronze: "#CD7F32",
+  silver: "#C0C0C0",
+  gold: "#FFD700",
+};
+
 // ─── Subscriber Formatter ────────────────────────────────
 
-function formatSubscribers(count: number): string {
+function formatSubs(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
   if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
   return `${count}`;
 }
 
-// ─── Badge Button Component ─────────────────────────────
+// ─── Creator Badge (next to avatar) ─────────────────────
 
 function CreatorBadge({ badge }: { badge: string }) {
   if (badge === "none") return null;
-
-  const config = {
-    bronze: {
-      bg: "#CD7F32",
-      label: "BRONZE",
-      icon: "trophy" as const,
-      glow: "#CD7F3240",
-      sub: "10K",
-    },
-    silver: {
-      bg: "#C0C0C0",
-      label: "SILVER",
-      icon: "trophy" as const,
-      glow: "#C0C0C040",
-      sub: "100K",
-    },
-    gold: {
-      bg: "#FFD700",
-      label: "GOLD",
-      icon: "trophy" as const,
-      glow: "#FFD70040",
-      sub: "1M",
-    },
+  const map: Record<string, { color: string; label: string }> = {
+    bronze: { color: C.bronze, label: "BRONZE" },
+    silver: { color: C.silver, label: "SILVER" },
+    gold: { color: C.gold, label: "GOLD" },
   };
-
-  const c = config[badge as keyof typeof config];
+  const c = map[badge];
   if (!c) return null;
-
   return (
-    <View
-      className="flex-row items-center rounded-full px-3 py-1.5"
-      style={{ backgroundColor: c.glow }}
-    >
-      <Ionicons name={c.icon} size={14} color={c.bg} />
-      <Text
-        className="text-xs font-bold ml-1.5 tracking-wider"
-        style={{ color: c.bg }}
-      >
+    <View style={[s.row, s.center, { backgroundColor: c.color + "25", borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5 }]}>
+      <Ionicons name="trophy" size={13} color={c.color} />
+      <Text style={{ color: c.color, fontSize: 11, fontWeight: "800", marginLeft: 5, letterSpacing: 1 }}>
         {c.label}
       </Text>
     </View>
   );
 }
 
-// ─── Badge Milestone Progress ───────────────────────────
+// ─── Badge Milestones ───────────────────────────────────
 
-function BadgeMilestones({
-  subscriberCount,
-  badge,
-}: {
-  subscriberCount: number;
-  badge: string;
-}) {
+function BadgeMilestones({ subscriberCount, badge }: { subscriberCount: number; badge: string }) {
   const milestones = [
-    {
-      key: "bronze",
-      label: "Bronze",
-      target: 10_000,
-      color: "#CD7F32",
-      icon: "trophy-outline" as const,
-    },
-    {
-      key: "silver",
-      label: "Silver",
-      target: 100_000,
-      color: "#C0C0C0",
-      icon: "trophy-outline" as const,
-    },
-    {
-      key: "gold",
-      label: "Gold",
-      target: 1_000_000,
-      color: "#FFD700",
-      icon: "trophy-outline" as const,
-    },
+    { key: "bronze", label: "Bronze", target: 10_000, color: C.bronze },
+    { key: "silver", label: "Silver", target: 100_000, color: C.silver },
+    { key: "gold", label: "Gold", target: 1_000_000, color: C.gold },
   ];
-
-  const badgeOrder = ["none", "bronze", "silver", "gold"];
-  const currentBadgeIndex = badgeOrder.indexOf(badge);
+  const order = ["none", "bronze", "silver", "gold"];
+  const idx = order.indexOf(badge);
 
   return (
-    <View className="mx-4 mt-4 bg-[#1A1A1A] rounded-2xl p-4">
-      <Text className="text-[#888] text-xs font-semibold uppercase tracking-widest mb-3">
-        Creator Button
-      </Text>
-      <View className="flex-row justify-between">
+    <View style={[s.milestoneBox]}>
+      <Text style={s.milestoneTitle}>CREATOR BUTTON</Text>
+      <View style={s.milestoneRow}>
         {milestones.map((m) => {
-          const achieved = badgeOrder.indexOf(m.key) <= currentBadgeIndex;
+          const achieved = order.indexOf(m.key) <= idx;
           const progress = Math.min(subscriberCount / m.target, 1);
-          const isCurrent =
-            badgeOrder.indexOf(m.key) === currentBadgeIndex + 1;
-
+          const isCurrent = order.indexOf(m.key) === idx + 1;
           return (
-            <View key={m.key} className="items-center flex-1">
-              {/* Icon Circle */}
+            <View key={m.key} style={s.milestoneItem}>
               <View
-                className="w-12 h-12 rounded-full items-center justify-center mb-2"
-                style={{
-                  backgroundColor: achieved ? m.color + "25" : "#2A2A2A",
-                  borderWidth: isCurrent ? 2 : achieved ? 1.5 : 1,
-                  borderColor: achieved
-                    ? m.color
-                    : isCurrent
-                    ? m.color + "60"
-                    : "#333",
-                }}
+                style={[
+                  s.milestoneCircle,
+                  {
+                    backgroundColor: achieved ? m.color + "25" : C.card3,
+                    borderWidth: isCurrent ? 2 : achieved ? 1.5 : 1,
+                    borderColor: achieved ? m.color : isCurrent ? m.color + "60" : C.gray6,
+                  },
+                ]}
               >
-                <Ionicons
-                  name={achieved ? "trophy" : m.icon}
-                  size={20}
-                  color={achieved ? m.color : "#555"}
-                />
+                <Ionicons name={achieved ? "trophy" : "trophy-outline"} size={20} color={achieved ? m.color : C.gray4} />
               </View>
-              {/* Label */}
-              <Text
-                className="text-xs font-bold mb-0.5"
-                style={{ color: achieved ? m.color : "#555" }}
-              >
-                {m.label}
-              </Text>
-              <Text className="text-[10px] text-[#666]">
-                {formatSubscribers(m.target)}
-              </Text>
-              {/* Progress bar (only for unachieved) */}
-              {!achieved && (
-                <View className="w-10 h-1 bg-[#2A2A2A] rounded-full mt-1.5 overflow-hidden">
-                  <View
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${progress * 100}%`,
-                      backgroundColor: m.color + "80",
-                    }}
-                  />
+              <Text style={[s.milestoneLabel, { color: achieved ? m.color : C.gray4 }]}>{m.label}</Text>
+              <Text style={s.milestoneSub}>{formatSubs(m.target)}</Text>
+              {achieved ? (
+                <Ionicons name="checkmark-circle" size={14} color={m.color} style={{ marginTop: 4 }} />
+              ) : (
+                <View style={s.progressTrack}>
+                  <View style={[s.progressBar, { width: `${progress * 100}%` as any, backgroundColor: m.color + "80" }]} />
                 </View>
-              )}
-              {achieved && (
-                <Ionicons
-                  name="checkmark-circle"
-                  size={14}
-                  color={m.color}
-                  style={{ marginTop: 4 }}
-                />
               )}
             </View>
           );
@@ -171,53 +115,34 @@ function BadgeMilestones({
   );
 }
 
-// ─── Episode Thumbnail Card ─────────────────────────────
+// ─── Episode Card ───────────────────────────────────────
 
 function EpisodeCard({ episode }: { episode: Episode }) {
-  const expressionRatio = `${episode.expressionsUsed}/${episode.expressionsTotal}`;
-
   return (
-    <Pressable
-      className="overflow-hidden mb-3"
-      style={{ width: CARD_WIDTH }}
-    >
-      {/* Thumbnail Area */}
-      <View
-        className="rounded-xl overflow-hidden"
-        style={{ height: CARD_WIDTH * 0.56 }}
-      >
-        <View className="flex-1 bg-[#1E1E1E] items-center justify-center">
-          <Text className="text-3xl">{episode.emoji}</Text>
+    <Pressable style={{ width: CARD_WIDTH, marginBottom: 14 }}>
+      {/* Thumbnail */}
+      <View style={[s.thumbWrap, { height: CARD_WIDTH * 0.56 }]}>
+        <View style={s.thumbInner}>
+          <Text style={{ fontSize: 30 }}>{episode.emoji}</Text>
         </View>
         {/* Duration badge */}
-        <View className="absolute bottom-1.5 right-1.5 bg-black/80 rounded px-1.5 py-0.5">
-          <Text className="text-white text-[9px] font-bold">
-            {episode.durationMinutes}min
-          </Text>
+        <View style={s.durationBadge}>
+          <Text style={s.durationText}>{episode.durationMinutes}min</Text>
         </View>
         {/* Series badge */}
         {episode.seriesName && episode.seriesOrder && episode.seriesTotal && (
-          <View className="absolute top-1.5 left-1.5 bg-[#FF0000]/90 rounded px-1.5 py-0.5">
-            <Text className="text-white text-[9px] font-bold">
-              {episode.seriesOrder}/{episode.seriesTotal}
-            </Text>
+          <View style={s.seriesBadge}>
+            <Text style={s.seriesText}>{episode.seriesOrder}/{episode.seriesTotal}</Text>
           </View>
         )}
       </View>
-      {/* Info Area */}
-      <View className="pt-2 px-0.5">
-        <Text
-          className="text-white text-[13px] font-semibold leading-[18px]"
-          numberOfLines={2}
-        >
-          {episode.title}
-        </Text>
-        <View className="flex-row items-center mt-1.5">
-          <Text className="text-[#888] text-[11px]">{episode.date}</Text>
-          <View className="w-0.5 h-0.5 bg-[#555] rounded-full mx-1.5" />
-          <Text className="text-[#888] text-[11px]">
-            {expressionRatio} expressions
-          </Text>
+      {/* Info */}
+      <View style={{ paddingTop: 8, paddingHorizontal: 2 }}>
+        <Text style={s.epTitle} numberOfLines={2}>{episode.title}</Text>
+        <View style={[s.row, { marginTop: 4, alignItems: "center" }]}>
+          <Text style={s.epMeta}>{episode.date}</Text>
+          <View style={s.dot} />
+          <Text style={s.epMeta}>{episode.expressionsUsed}/{episode.expressionsTotal} expressions</Text>
         </View>
       </View>
     </Pressable>
@@ -228,14 +153,12 @@ function EpisodeCard({ episode }: { episode: Episode }) {
 
 function EpisodeEmptyState() {
   return (
-    <View className="items-center justify-center py-16 px-8">
-      <View className="w-20 h-20 rounded-2xl bg-[#1E1E1E] items-center justify-center mb-4">
-        <Ionicons name="videocam-outline" size={36} color="#444" />
+    <View style={[s.center, { paddingVertical: 60, paddingHorizontal: 32 }]}>
+      <View style={[s.center, { width: 80, height: 80, borderRadius: 16, backgroundColor: C.card2, marginBottom: 16 }]}>
+        <Ionicons name="videocam-outline" size={36} color={C.gray5} />
       </View>
-      <Text className="text-[#888] text-base font-semibold mb-2">
-        아직 에피소드가 없습니다
-      </Text>
-      <Text className="text-[#555] text-sm text-center leading-5">
+      <Text style={{ color: C.gray2, fontSize: 16, fontWeight: "600", marginBottom: 8 }}>아직 에피소드가 없습니다</Text>
+      <Text style={{ color: C.gray4, fontSize: 14, textAlign: "center", lineHeight: 20 }}>
         첫 수업을 완료하면 에피소드가{"\n"}채널에 자동으로 추가됩니다
       </Text>
     </View>
@@ -246,169 +169,100 @@ function EpisodeEmptyState() {
 
 export default function ChannelHomeScreen() {
   const { userProfile, channelInfo } = useAppStore();
-
-  const tags = [
-    userProfile.job,
-    userProfile.location,
-    ...(userProfile.hobbies.length > 0
-      ? [userProfile.hobbies[0] + " lover"]
-      : []),
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const tags = [userProfile.job, userProfile.location, ...(userProfile.hobbies.length > 0 ? [userProfile.hobbies[0] + " lover"] : [])].filter(Boolean).join(" · ");
 
   return (
-    <SafeAreaView className="flex-1 bg-[#0F0F0F]">
-      <ScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[]}
-      >
-        {/* ═══════════════════════════════════════════════════
-            BANNER AREA — 유튜브 채널 헤더
-           ═══════════════════════════════════════════════════ */}
-        <View className="bg-[#0F0F0F]">
-          {/* Banner Image Area */}
-          <View className="h-32 bg-[#111111] relative">
-            {/* Gradient overlay pattern */}
-            <View className="absolute inset-0 bg-[#0F0F0F]/30" />
-            {/* Decorative grid lines (YouTube-like) */}
-            <View className="absolute inset-0 items-center justify-center">
-              <Text className="text-[#222] text-6xl font-black tracking-tighter opacity-30">
-                VLOG
-              </Text>
+    <SafeAreaView style={s.safe}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        {/* ═══ BANNER ═══ */}
+        <View style={s.bannerWrap}>
+          <View style={s.bannerBg} />
+          <View style={[s.center, StyleSheet.absoluteFill]}>
+            <Text style={s.bannerText}>VLOG</Text>
+          </View>
+          <Pressable style={s.menuBtn}>
+            <Ionicons name="ellipsis-vertical" size={18} color={C.gray1} />
+          </Pressable>
+        </View>
+
+        {/* ═══ PROFILE ═══ */}
+        <View style={s.profileWrap}>
+          {/* Avatar row */}
+          <View style={[s.row, { alignItems: "flex-end" }]}>
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>JW</Text>
             </View>
-            {/* Settings icon */}
-            <Pressable className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/40 items-center justify-center">
-              <Ionicons name="ellipsis-vertical" size={18} color="#AAA" />
-            </Pressable>
+            <View style={{ marginLeft: 12, marginBottom: 4 }}>
+              <CreatorBadge badge={channelInfo.badge} />
+            </View>
           </View>
 
-          {/* ── Profile Section ────────────────────────── */}
-          <View className="px-4 -mt-10">
-            {/* Avatar */}
-            <View className="flex-row items-end">
-              <View
-                className="w-20 h-20 rounded-full items-center justify-center border-[3px]"
-                style={{
-                  backgroundColor: "#FF0000",
-                  borderColor: "#0F0F0F",
-                }}
-              >
-                <Text className="text-white text-2xl font-black">JW</Text>
-              </View>
-              {/* Badge next to avatar */}
-              <View className="ml-3 mb-1">
-                <CreatorBadge badge={channelInfo.badge} />
-              </View>
-            </View>
+          {/* Channel name */}
+          <Text style={s.channelName}>{channelInfo.channelName}</Text>
+          <View style={[s.row, { marginTop: 4, alignItems: "center" }]}>
+            <Text style={s.handleText}>{userProfile.channelHandle}</Text>
+            <View style={[s.dot, { marginHorizontal: 8 }]} />
+            <Text style={s.handleText}>{tags}</Text>
+          </View>
 
-            {/* Channel Name & Handle */}
-            <View className="mt-3">
-              <Text className="text-white text-xl font-black tracking-tight">
-                {channelInfo.channelName}
-              </Text>
-              <View className="flex-row items-center mt-1">
-                <Text className="text-[#AAA] text-sm">
-                  {userProfile.channelHandle}
-                </Text>
-                <View className="w-1 h-1 bg-[#555] rounded-full mx-2" />
-                <Text className="text-[#AAA] text-sm">
-                  {tags}
-                </Text>
-              </View>
-            </View>
+          {/* Subscriber count — BIG */}
+          <View style={[s.row, { marginTop: 16, alignItems: "baseline" }]}>
+            <Text style={s.subCount}>{formatSubs(channelInfo.subscriberCount)}</Text>
+            <Text style={s.subLabel}>subscribers</Text>
+          </View>
 
-            {/* ── Subscriber Count — BIG ──────────────── */}
-            <View className="mt-4 flex-row items-baseline">
-              <Text className="text-white text-4xl font-black tracking-tight">
-                {formatSubscribers(channelInfo.subscriberCount)}
-              </Text>
-              <Text className="text-[#888] text-base font-semibold ml-2">
-                subscribers
-              </Text>
+          {/* Stats row */}
+          <View style={s.statsRow}>
+            <View style={s.statItem}>
+              <Text style={s.statNum}>{channelInfo.episodes.length}</Text>
+              <Text style={s.statLabel}>Episodes</Text>
             </View>
-
-            {/* ── Stats Row ───────────────────────────── */}
-            <View className="flex-row mt-4 bg-[#1A1A1A] rounded-2xl overflow-hidden">
-              <View className="flex-1 py-3.5 items-center">
-                <Text className="text-white text-lg font-black">
-                  {channelInfo.episodes.length}
-                </Text>
-                <Text className="text-[#888] text-[11px] mt-0.5">
-                  Episodes
-                </Text>
+            <View style={s.statDiv} />
+            <View style={s.statItem}>
+              <View style={s.row}>
+                <Text style={s.statNum}>{channelInfo.streakDays}</Text>
+                <Text style={{ fontSize: 18, marginLeft: 2 }}>🔥</Text>
               </View>
-              <View className="w-px bg-[#2A2A2A]" />
-              <View className="flex-1 py-3.5 items-center">
-                <View className="flex-row items-center">
-                  <Text className="text-white text-lg font-black">
-                    {channelInfo.streakDays}
-                  </Text>
-                  <Text className="text-[#FF6B6B] text-lg ml-0.5">🔥</Text>
-                </View>
-                <Text className="text-[#888] text-[11px] mt-0.5">
-                  Day Streak
-                </Text>
-              </View>
-              <View className="w-px bg-[#2A2A2A]" />
-              <View className="flex-1 py-3.5 items-center">
-                <Text className="text-white text-lg font-black">
-                  {Math.floor(channelInfo.totalTalkTimeMinutes / 60)}h{" "}
-                  {channelInfo.totalTalkTimeMinutes % 60}m
-                </Text>
-                <Text className="text-[#888] text-[11px] mt-0.5">
-                  Talk Time
-                </Text>
-              </View>
+              <Text style={s.statLabel}>Day Streak</Text>
+            </View>
+            <View style={s.statDiv} />
+            <View style={s.statItem}>
+              <Text style={s.statNum}>
+                {Math.floor(channelInfo.totalTalkTimeMinutes / 60)}h {channelInfo.totalTalkTimeMinutes % 60}m
+              </Text>
+              <Text style={s.statLabel}>Talk Time</Text>
             </View>
           </View>
         </View>
 
-        {/* ═══════════════════════════════════════════════════
-            BADGE MILESTONES
-           ═══════════════════════════════════════════════════ */}
-        <BadgeMilestones
-          subscriberCount={channelInfo.subscriberCount}
-          badge={channelInfo.badge}
-        />
+        {/* ═══ BADGE MILESTONES ═══ */}
+        <BadgeMilestones subscriberCount={channelInfo.subscriberCount} badge={channelInfo.badge} />
 
-        {/* ═══════════════════════════════════════════════════
-            EPISODES SECTION
-           ═══════════════════════════════════════════════════ */}
-        <View className="mt-5">
-          {/* Section Header */}
-          <View className="px-4 flex-row items-center justify-between mb-3">
-            <View className="flex-row items-center">
-              <Ionicons name="grid-outline" size={16} color="#AAA" />
-              <Text className="text-white text-base font-bold ml-2">
-                에피소드
-              </Text>
-              <View className="bg-[#FF0000] rounded-full px-2 py-0.5 ml-2">
-                <Text className="text-white text-[10px] font-bold">
-                  {channelInfo.episodes.length}
-                </Text>
+        {/* ═══ EPISODES ═══ */}
+        <View style={{ marginTop: 20 }}>
+          {/* Header */}
+          <View style={s.sectionHeader}>
+            <View style={[s.row, { alignItems: "center" }]}>
+              <Ionicons name="grid-outline" size={16} color={C.gray1} />
+              <Text style={s.sectionTitle}>에피소드</Text>
+              <View style={s.countBadge}>
+                <Text style={s.countBadgeText}>{channelInfo.episodes.length}</Text>
               </View>
             </View>
             {channelInfo.episodes.length > 0 && (
-              <Pressable className="flex-row items-center">
-                <Text className="text-[#AAA] text-xs mr-1">전체보기</Text>
-                <Ionicons name="chevron-forward" size={14} color="#AAA" />
+              <Pressable style={[s.row, { alignItems: "center" }]}>
+                <Text style={{ color: C.gray1, fontSize: 12, marginRight: 2 }}>전체보기</Text>
+                <Ionicons name="chevron-forward" size={14} color={C.gray1} />
               </Pressable>
             )}
           </View>
+          <View style={s.divider} />
 
-          {/* Divider */}
-          <View className="h-px bg-[#1A1A1A] mx-4 mb-3" />
-
-          {/* Episode Grid */}
+          {/* Grid */}
           {channelInfo.episodes.length === 0 ? (
             <EpisodeEmptyState />
           ) : (
-            <View
-              className="flex-row flex-wrap px-4"
-              style={{ gap: CARD_GAP }}
-            >
+            <View style={s.grid}>
               {channelInfo.episodes.map((ep) => (
                 <EpisodeCard key={ep.id} episode={ep} />
               ))}
@@ -416,9 +270,91 @@ export default function ChannelHomeScreen() {
           )}
         </View>
 
-        {/* Bottom Spacer */}
-        <View className="h-10" />
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+// ─── Styles ─────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.bg },
+  row: { flexDirection: "row" },
+  center: { alignItems: "center", justifyContent: "center" },
+
+  // Banner
+  bannerWrap: { height: 130, backgroundColor: "#111", position: "relative" },
+  bannerBg: { ...StyleSheet.absoluteFillObject, backgroundColor: C.bg, opacity: 0.3 },
+  bannerText: { color: "#222", fontSize: 56, fontWeight: "900", letterSpacing: -2, opacity: 0.3 },
+  menuBtn: {
+    position: "absolute", top: 12, right: 12,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center", justifyContent: "center",
+  },
+
+  // Profile
+  profileWrap: { paddingHorizontal: 16, marginTop: -40 },
+  avatar: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: C.red, borderWidth: 3, borderColor: C.bg,
+    alignItems: "center", justifyContent: "center",
+  },
+  avatarText: { color: C.white, fontSize: 26, fontWeight: "900" },
+  channelName: { color: C.white, fontSize: 22, fontWeight: "900", marginTop: 12, letterSpacing: -0.5 },
+  handleText: { color: C.gray1, fontSize: 13 },
+  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.gray4 },
+
+  // Subscriber
+  subCount: { color: C.white, fontSize: 38, fontWeight: "900", letterSpacing: -1 },
+  subLabel: { color: C.gray2, fontSize: 15, fontWeight: "600", marginLeft: 8 },
+
+  // Stats
+  statsRow: {
+    flexDirection: "row", marginTop: 16,
+    backgroundColor: C.card, borderRadius: 16, overflow: "hidden",
+  },
+  statItem: { flex: 1, paddingVertical: 14, alignItems: "center" },
+  statNum: { color: C.white, fontSize: 18, fontWeight: "900" },
+  statLabel: { color: C.gray2, fontSize: 11, marginTop: 2 },
+  statDiv: { width: 1, backgroundColor: C.card3 },
+
+  // Milestones
+  milestoneBox: { marginHorizontal: 16, marginTop: 16, backgroundColor: C.card, borderRadius: 16, padding: 16 },
+  milestoneTitle: { color: C.gray2, fontSize: 11, fontWeight: "700", letterSpacing: 2, marginBottom: 12 },
+  milestoneRow: { flexDirection: "row", justifyContent: "space-between" },
+  milestoneItem: { alignItems: "center", flex: 1 },
+  milestoneCircle: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  milestoneLabel: { fontSize: 12, fontWeight: "700" },
+  milestoneSub: { fontSize: 10, color: C.gray3, marginTop: 1 },
+  progressTrack: { width: 40, height: 4, backgroundColor: C.card3, borderRadius: 2, marginTop: 6, overflow: "hidden" },
+  progressBar: { height: "100%", borderRadius: 2 },
+
+  // Episodes section
+  sectionHeader: {
+    paddingHorizontal: 16, flexDirection: "row",
+    alignItems: "center", justifyContent: "space-between", marginBottom: 12,
+  },
+  sectionTitle: { color: C.white, fontSize: 16, fontWeight: "700", marginLeft: 8 },
+  countBadge: { backgroundColor: C.red, borderRadius: 99, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 },
+  countBadgeText: { color: C.white, fontSize: 10, fontWeight: "700" },
+  divider: { height: 1, backgroundColor: C.card, marginHorizontal: 16, marginBottom: 12 },
+  grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: CARD_PADDING, gap: CARD_GAP },
+
+  // Episode card
+  thumbWrap: { borderRadius: 12, overflow: "hidden", position: "relative" },
+  thumbInner: { flex: 1, backgroundColor: C.card2, alignItems: "center", justifyContent: "center" },
+  durationBadge: {
+    position: "absolute", bottom: 6, right: 6,
+    backgroundColor: "rgba(0,0,0,0.8)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  durationText: { color: C.white, fontSize: 9, fontWeight: "700" },
+  seriesBadge: {
+    position: "absolute", top: 6, left: 6,
+    backgroundColor: "rgba(255,0,0,0.9)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
+  },
+  seriesText: { color: C.white, fontSize: 9, fontWeight: "700" },
+  epTitle: { color: C.white, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  epMeta: { color: C.gray2, fontSize: 11 },
+});
