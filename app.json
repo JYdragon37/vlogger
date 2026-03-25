@@ -38,7 +38,12 @@
     "plugins": [
       "expo-router",
       "expo-web-browser",
-      "@react-native-google-signin/google-signin"
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.294575326706-o73cv9l6ghlmue3hjclb72tdc1r2a5sf"
+        }
+      ]
     ],
     "extra": {
       "router": {},
