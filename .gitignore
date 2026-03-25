@@ -39,9 +39,14 @@ yarn-error.*
 google-services.json
 GoogleService-Info.plist
 
+# OAuth client secret files
+client_*.plist
+client_secret_*.json
+
 # typescript
 *.tsbuildinfo
 
 # generated native folders
 /ios
 /android
+/docs

@@ -1,4 +1,7 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { User } from "firebase/auth";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -72,6 +75,16 @@ interface AppState {
 
   // Onboarding
   completeOnboarding: (profile: UserProfile, channelName: string, schedule: LessonSchedule) => void;
+
+  // Auth
+  user: User | null;
+  isAuthLoaded: boolean;
+  setUser: (user: User | null) => void;
+  setAuthLoaded: (loaded: boolean) => void;
+
+  // Hydration
+  _hasHydrated: boolean;
+  setHasHydrated: (hydrated: boolean) => void;
 }
 
 // ─── Dummy Episodes (PRD Day 1~15 시뮬레이션) ─────────
@@ -218,70 +231,98 @@ const defaultLessonSchedule: LessonSchedule = {
 
 // ─── Store ───────────────────────────────────────────────
 
-export const useAppStore = create<AppState>((set) => ({
-  // User Profile
-  userProfile: defaultUserProfile,
-  setUserProfile: (profile) =>
-    set((state) => ({
-      userProfile: { ...state.userProfile, ...profile },
-    })),
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      // User Profile
+      userProfile: defaultUserProfile,
+      setUserProfile: (profile) =>
+        set((state) => ({
+          userProfile: { ...state.userProfile, ...profile },
+        })),
 
-  // Channel Info
-  channelInfo: defaultChannelInfo,
-  setChannelInfo: (info) =>
-    set((state) => ({
-      channelInfo: { ...state.channelInfo, ...info },
-    })),
-  addEpisode: (episode) =>
-    set((state) => ({
-      channelInfo: {
-        ...state.channelInfo,
-        episodes: [episode, ...state.channelInfo.episodes],
-      },
-    })),
-  addSubscribers: (count) =>
-    set((state) => {
-      const newCount = state.channelInfo.subscriberCount + count;
-      let badge = state.channelInfo.badge;
-      if (newCount >= 1_000_000) badge = "gold";
-      else if (newCount >= 100_000) badge = "silver";
-      else if (newCount >= 10_000) badge = "bronze";
+      // Channel Info
+      channelInfo: defaultChannelInfo,
+      setChannelInfo: (info) =>
+        set((state) => ({
+          channelInfo: { ...state.channelInfo, ...info },
+        })),
+      addEpisode: (episode) =>
+        set((state) => ({
+          channelInfo: {
+            ...state.channelInfo,
+            episodes: [episode, ...state.channelInfo.episodes],
+          },
+        })),
+      addSubscribers: (count) =>
+        set((state) => {
+          const newCount = state.channelInfo.subscriberCount + count;
+          let badge = state.channelInfo.badge;
+          if (newCount >= 1_000_000) badge = "gold";
+          else if (newCount >= 100_000) badge = "silver";
+          else if (newCount >= 10_000) badge = "bronze";
 
-      return {
-        channelInfo: {
-          ...state.channelInfo,
-          subscriberCount: newCount,
-          badge,
-        },
-      };
+          return {
+            channelInfo: {
+              ...state.channelInfo,
+              subscriberCount: newCount,
+              badge,
+            },
+          };
+        }),
+
+      // Lesson Schedule
+      lessonSchedule: defaultLessonSchedule,
+      setLessonSchedule: (schedule) =>
+        set((state) => ({
+          lessonSchedule: { ...state.lessonSchedule, ...schedule },
+        })),
+
+      // App State
+      isPremium: false,
+      setIsPremium: (premium) => set({ isPremium: premium }),
+      isOnboarded: false,
+      setIsOnboarded: (onboarded) => set({ isOnboarded: onboarded }),
+
+      // Onboarding
+      completeOnboarding: (profile, channelName, schedule) =>
+        set({
+          userProfile: profile,
+          channelInfo: {
+            channelName,
+            subscriberCount: 0,
+            episodes: [],
+            badge: "none",
+            streakDays: 0,
+            totalTalkTimeMinutes: 0,
+          },
+          lessonSchedule: schedule,
+          isOnboarded: true,
+        }),
+
+      // Auth
+      user: null,
+      isAuthLoaded: false,
+      setUser: (user) => set({ user }),
+      setAuthLoaded: (loaded) => set({ isAuthLoaded: loaded }),
+
+      // Hydration
+      _hasHydrated: false,
+      setHasHydrated: (hydrated) => set({ _hasHydrated: hydrated }),
     }),
-
-  // Lesson Schedule
-  lessonSchedule: defaultLessonSchedule,
-  setLessonSchedule: (schedule) =>
-    set((state) => ({
-      lessonSchedule: { ...state.lessonSchedule, ...schedule },
-    })),
-
-  // App State
-  isPremium: false,
-  setIsPremium: (premium) => set({ isPremium: premium }),
-  isOnboarded: false,
-  setIsOnboarded: (onboarded) => set({ isOnboarded: onboarded }),
-
-  // Onboarding
-  completeOnboarding: (profile, channelName, schedule) =>
-    set({
-      userProfile: profile,
-      channelInfo: {
-        channelName,
-        subscriberCount: 0,
-        episodes: [],
-        badge: "none",
-        streakDays: 0,
-        totalTalkTimeMinutes: 0,
+    {
+      name: "vlogger-app-storage",
+      storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
       },
-      lessonSchedule: schedule,
-      isOnboarded: true,
-    }),
-}));
+      partialize: (state) => ({
+        isOnboarded: state.isOnboarded,
+        userProfile: state.userProfile,
+        channelInfo: state.channelInfo,
+        lessonSchedule: state.lessonSchedule,
+        isPremium: state.isPremium,
+      }),
+    }
+  )
+);

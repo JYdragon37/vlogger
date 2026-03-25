@@ -1,13 +1,17 @@
-import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
+import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { signOut } from "firebase/auth";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { auth } from "@/lib/firebase";
 import { useAppStore } from "@/store/useAppStore";
 
 const C = { bg: "#0F0F0F", card: "#1A1A1A", red: "#FF0000", white: "#FFF", gray1: "#AAA", gray2: "#888", gray4: "#555" };
 
-function Row({ icon, label, value, danger }: { icon: any; label: string; value?: string; danger?: boolean }) {
+function Row({ icon, label, value, danger, onPress }: { icon: any; label: string; value?: string; danger?: boolean; onPress?: () => void }) {
   return (
-    <Pressable style={s.row}>
+    <Pressable style={s.row} onPress={onPress}>
       <Ionicons name={icon} size={20} color={danger ? "#FF3B30" : C.gray1} />
       <Text style={[s.rowLabel, danger && { color: "#FF3B30" }]}>{label}</Text>
       {value && <Text style={s.rowValue}>{value}</Text>}
@@ -27,6 +31,29 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function SettingsScreen() {
   const { userProfile, channelInfo, isPremium } = useAppStore();
+  const router = useRouter();
+
+  const handleSignOut = () => {
+    Alert.alert("로그아웃", "정말 로그아웃 하시겠어요?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "로그아웃",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            // Google 세션도 함께 로그아웃 (로그인된 경우만)
+            if (GoogleSignin.getCurrentUser()) {
+              await GoogleSignin.signOut();
+            }
+          } catch {
+            // Google signOut 실패해도 Firebase signOut 진행
+          }
+          await signOut(auth);
+          router.replace("/login");
+        },
+      },
+    ]);
+  };
 
   return (
     <SafeAreaView style={s.safe}>
@@ -74,7 +101,7 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title="">
-          <Row icon="log-out-outline" label="로그아웃" danger />
+          <Row icon="log-out-outline" label="로그아웃" danger onPress={handleSignOut} />
         </Section>
 
         <View style={{ height: 32 }} />
