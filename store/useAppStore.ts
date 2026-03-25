@@ -69,6 +69,9 @@ interface AppState {
   setIsPremium: (premium: boolean) => void;
   isOnboarded: boolean;
   setIsOnboarded: (onboarded: boolean) => void;
+
+  // Onboarding
+  completeOnboarding: (profile: UserProfile, channelName: string, schedule: LessonSchedule) => void;
 }
 
 // ─── Dummy Episodes (PRD Day 1~15 시뮬레이션) ─────────
@@ -191,21 +194,21 @@ const dummyEpisodes: Episode[] = [
 // ─── Default Values ──────────────────────────────────────
 
 const defaultUserProfile: UserProfile = {
-  name: "박지원",
-  channelHandle: "@jw_english",
-  job: "마케터",
-  location: "서울 강남",
-  hobbies: ["카페 투어", "헬스", "넷플릭스"],
+  name: "",
+  channelHandle: "",
+  job: "",
+  location: "",
+  hobbies: [],
   englishLevel: "Intermediate",
 };
 
 const defaultChannelInfo: ChannelInfo = {
-  channelName: "JW's Seoul Vlog",
-  subscriberCount: 12400,
-  episodes: dummyEpisodes,
-  badge: "bronze",
-  streakDays: 15,
-  totalTalkTimeMinutes: 165,
+  channelName: "",
+  subscriberCount: 0,
+  episodes: [],
+  badge: "none",
+  streakDays: 0,
+  totalTalkTimeMinutes: 0,
 };
 
 const defaultLessonSchedule: LessonSchedule = {
@@ -263,6 +266,22 @@ export const useAppStore = create<AppState>((set) => ({
   // App State
   isPremium: false,
   setIsPremium: (premium) => set({ isPremium: premium }),
-  isOnboarded: true, // default true for now (placeholder)
+  isOnboarded: false,
   setIsOnboarded: (onboarded) => set({ isOnboarded: onboarded }),
+
+  // Onboarding
+  completeOnboarding: (profile, channelName, schedule) =>
+    set({
+      userProfile: profile,
+      channelInfo: {
+        channelName,
+        subscriberCount: 0,
+        episodes: [],
+        badge: "none",
+        streakDays: 0,
+        totalTalkTimeMinutes: 0,
+      },
+      lessonSchedule: schedule,
+      isOnboarded: true,
+    }),
 }));
