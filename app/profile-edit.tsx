@@ -1,12 +1,12 @@
 import { useState } from "react";
 import {
   View, Text, TextInput, Pressable, TouchableOpacity, ScrollView,
-  StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
+  StyleSheet, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAppStore, type EnglishLevel, type Gender } from "@/store/useAppStore";
+import { useAppStore, type EnglishLevel, type Gender, type Character } from "@/store/useAppStore";
 import { saveUserData } from "@/lib/firestore";
 
 const C = {
@@ -33,6 +33,8 @@ const HOBBY_OPTIONS = [
 ];
 
 const MAX_HOBBIES = 5;
+const MAX_CHARACTERS = 5;
+const RELATIONSHIP_OPTIONS = ["친구", "직장 동료", "룸메이트", "가족", "연인", "선생님", "기타"];
 
 export default function ProfileEditScreen() {
   const router = useRouter();
@@ -50,6 +52,11 @@ export default function ProfileEditScreen() {
   const [location, setLocation] = useState(userProfile.location);
   const [selectedHobbies, setSelectedHobbies] = useState<string[]>(userProfile.hobbies);
   const [level, setLevel] = useState<EnglishLevel>(userProfile.englishLevel);
+  const [characters, setCharacters] = useState<Character[]>(userProfile.characters ?? []);
+  const [charModalVisible, setCharModalVisible] = useState(false);
+  const [charName, setCharName] = useState("");
+  const [charRelationship, setCharRelationship] = useState("");
+  const [charJob, setCharJob] = useState("");
   const [saving, setSaving] = useState(false);
 
   const job = selectedJob === "기타" ? customJob : selectedJob;
@@ -60,6 +67,24 @@ export default function ProfileEditScreen() {
       prev.includes(h) ? prev.filter((x) => x !== h) : prev.length < MAX_HOBBIES ? [...prev, h] : prev
     );
   };
+
+  const openAddChar = () => {
+    setCharName(""); setCharRelationship(""); setCharJob("");
+    setCharModalVisible(true);
+  };
+
+  const confirmAddChar = () => {
+    if (!charName.trim() || !charRelationship) return;
+    setCharacters((prev) => [...prev, {
+      name: charName.trim(),
+      relationship: charRelationship,
+      job: charJob.trim() || undefined,
+    }]);
+    setCharModalVisible(false);
+  };
+
+  const removeChar = (idx: number) =>
+    setCharacters((prev) => prev.filter((_, i) => i !== idx));
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -75,6 +100,7 @@ export default function ProfileEditScreen() {
       location: location.trim(),
       hobbies: selectedHobbies,
       englishLevel: level,
+      characters: characters.length > 0 ? characters : undefined,
     };
     const finalChannelName = channelName.trim() || `${name.trim()}'s English Vlog`;
     setUserProfile(updatedProfile);
@@ -219,8 +245,79 @@ export default function ProfileEditScreen() {
             </View>
           </View>
 
+          {/* 등장인물 */}
+          <View style={s.field}>
+            <View style={s.labelRow}>
+              <Text style={s.label}>등장인물</Text>
+              <Text style={s.limitText}>최대 {MAX_CHARACTERS}명 · 선택</Text>
+            </View>
+            <Text style={s.charDesc}>스크립트에 자연스럽게 등장시킬 인물을 등록해요</Text>
+            {characters.map((c, i) => (
+              <View key={i} style={s.charRow}>
+                <View style={s.charAvatar}>
+                  <Text style={s.charAvatarText}>{c.name.slice(0, 1).toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.charName}>{c.name}</Text>
+                  <Text style={s.charMeta}>{c.relationship}{c.job ? ` · ${c.job}` : ""}</Text>
+                </View>
+                <Pressable onPress={() => removeChar(i)} hitSlop={8}>
+                  <Ionicons name="close-circle" size={20} color={C.gray4} />
+                </Pressable>
+              </View>
+            ))}
+            {characters.length < MAX_CHARACTERS && (
+              <Pressable style={s.addCharBtn} onPress={openAddChar}>
+                <Ionicons name="add" size={18} color={C.red} />
+                <Text style={s.addCharText}>인물 추가하기</Text>
+              </Pressable>
+            )}
+          </View>
+
           <View style={{ height: 40 }} />
         </ScrollView>
+
+        {/* 등장인물 추가 모달 */}
+        <Modal visible={charModalVisible} transparent animationType="fade">
+          <Pressable style={s.modalOverlay} onPress={() => setCharModalVisible(false)}>
+            <Pressable style={s.modalBox} onPress={() => {}}>
+              <Text style={s.modalTitle}>인물 추가</Text>
+              <TextInput
+                style={s.input}
+                placeholder="이름 (예: Mike, Sarah)"
+                placeholderTextColor="#444"
+                value={charName}
+                onChangeText={setCharName}
+              />
+              <Text style={[s.label, { marginTop: 14, marginBottom: 8 }]}>관계</Text>
+              <View style={s.chipWrap}>
+                {RELATIONSHIP_OPTIONS.map((r) => (
+                  <Pressable
+                    key={r}
+                    style={[s.chip, charRelationship === r && s.chipActive]}
+                    onPress={() => setCharRelationship(r)}
+                  >
+                    <Text style={[s.chipText, charRelationship === r && s.chipTextActive]}>{r}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                style={[s.input, { marginTop: 14 }]}
+                placeholder="직업 (선택, 예: 마케터)"
+                placeholderTextColor="#444"
+                value={charJob}
+                onChangeText={setCharJob}
+              />
+              <Pressable
+                style={[s.saveBtn, { marginTop: 20 }, (!charName.trim() || !charRelationship) && s.saveBtnDisabled]}
+                onPress={confirmAddChar}
+                disabled={!charName.trim() || !charRelationship}
+              >
+                <Text style={s.saveBtnText}>추가</Text>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         {/* Save button */}
         <View style={s.bottom}>
@@ -275,6 +372,35 @@ const s = StyleSheet.create({
     backgroundColor: C.card, alignItems: "center",
     borderWidth: 1.5, borderColor: "#2A2A2A",
   },
+  charDesc: { color: C.gray4, fontSize: 12, marginBottom: 12 },
+  charRow: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: "#111", borderRadius: 12, padding: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: "#2A2A2A",
+  },
+  charAvatar: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: C.red + "22", alignItems: "center", justifyContent: "center",
+  },
+  charAvatarText: { color: C.red, fontSize: 15, fontWeight: "700" },
+  charName: { color: C.white, fontSize: 14, fontWeight: "600" },
+  charMeta: { color: C.gray2, fontSize: 12, marginTop: 2 },
+  addCharBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderWidth: 1.5, borderColor: C.red + "55", borderStyle: "dashed",
+    borderRadius: 12, padding: 14, justifyContent: "center",
+  },
+  addCharText: { color: C.red, fontSize: 14, fontWeight: "600" },
+  modalOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center", paddingHorizontal: 24,
+  },
+  modalBox: {
+    backgroundColor: C.card, borderRadius: 20, padding: 24,
+    borderWidth: 1, borderColor: "#2A2A2A",
+  },
+  modalTitle: { color: C.white, fontSize: 18, fontWeight: "800", marginBottom: 16 },
+
   bottom: { paddingHorizontal: 24, paddingBottom: 32, paddingTop: 12 },
   saveBtn: {
     height: 52, borderRadius: 14, backgroundColor: C.red,
