@@ -5,10 +5,31 @@ import {
   Pressable,
   Dimensions,
   StyleSheet,
+  TextInput,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useEffect } from "react";
+import { useRouter } from "expo-router";
+import RAnimated, {
+  useSharedValue,
+  withTiming,
+  useAnimatedProps,
+  Easing,
+} from "react-native-reanimated";
+import { useState } from "react";
 import { useAppStore, type Episode } from "@/store/useAppStore";
+
+const AnimatedTextInput = RAnimated.createAnimatedComponent(TextInput);
+
+function formatSubsWorklet(n: number): string {
+  "worklet";
+  const v = Math.round(n);
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+  return `${v}`;
+}
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_GAP = 10;
@@ -42,6 +63,66 @@ function formatSubs(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
   if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
   return `${count}`;
+}
+
+// ─── Mini Line Chart (순수 View 기반, react-native-svg 불필요) ──
+
+function MiniLineChart({ data, width = 80, height = 36 }: { data: number[]; width?: number; height?: number }) {
+  if (data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const pad = 4;
+  const innerH = height - pad * 2;
+
+  const pts = data.map((v, i) => ({
+    x: (i / (data.length - 1)) * width,
+    y: pad + innerH - ((v - min) / range) * innerH,
+  }));
+
+  const lineColor = "#FFFFFF";
+
+  return (
+    <View style={{ width, height, position: "relative" }}>
+      {pts.slice(1).map((p, i) => {
+        const prev = pts[i];
+        const dx = p.x - prev.x;
+        const dy = p.y - prev.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        const mx = (prev.x + p.x) / 2;
+        const my = (prev.y + p.y) / 2;
+        return (
+          <View
+            key={i}
+            style={{
+              position: "absolute",
+              left: mx - len / 2,
+              top: my - 1,
+              width: len,
+              height: 1.5,
+              backgroundColor: lineColor,
+              opacity: 0.5,
+              transform: [{ rotate: `${angle}deg` }],
+            }}
+          />
+        );
+      })}
+      {/* 마지막 점만 표시 */}
+      <View
+        style={{
+          position: "absolute",
+          left: pts[pts.length - 1].x - 3,
+          top: pts[pts.length - 1].y - 3,
+          width: 6,
+          height: 6,
+          borderRadius: 3,
+          backgroundColor: lineColor,
+          opacity: 0.9,
+        }}
+      />
+    </View>
+  );
 }
 
 // ─── Creator Badge (next to avatar) ─────────────────────
@@ -117,14 +198,44 @@ function BadgeMilestones({ subscriberCount, badge }: { subscriberCount: number; 
 
 // ─── Episode Card ───────────────────────────────────────
 
+const THUMB_COLORS = ["#1A0D0D", "#0D1A0D", "#0D0D1A", "#1A1A0D", "#0D1A1A", "#1A0D1A"];
+
+function thumbColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return THUMB_COLORS[hash % THUMB_COLORS.length];
+}
+
 function EpisodeCard({ episode }: { episode: Episode }) {
+  const router = useRouter();
+  const { removeEpisode } = useAppStore();
+
+  const handleDelete = () => {
+    Alert.alert("에피소드 삭제", `"${episode.title}" 에피소드를 삭제할까요?`, [
+      { text: "취소", style: "cancel" },
+      { text: "삭제", style: "destructive", onPress: () => removeEpisode(episode.id) },
+    ]);
+  };
+
   return (
-    <Pressable style={{ width: CARD_WIDTH, marginBottom: 14 }}>
+    <Pressable
+      style={{ width: CARD_WIDTH, marginBottom: 14 }}
+      onPress={() => router.push(`/episode/${episode.id}` as any)}
+      onLongPress={handleDelete}
+    >
       {/* Thumbnail */}
       <View style={[s.thumbWrap, { height: CARD_WIDTH * 0.56 }]}>
-        <View style={s.thumbInner}>
-          <Text style={{ fontSize: 30 }}>{episode.emoji}</Text>
+        <View style={[s.thumbInner, { backgroundColor: thumbColor(episode.id) }]}>
+          <Text style={{ fontSize: 36 }}>{episode.emoji}</Text>
         </View>
+        {/* Overlay scrim */}
+        <View style={s.thumbScrim} />
+        {/* HIT 배지 */}
+        {episode.hitAchieved && (
+          <View style={s.hitBadge}>
+            <Text style={s.hitBadgeText}>🔥 HOT</Text>
+          </View>
+        )}
         {/* Duration badge */}
         <View style={s.durationBadge}>
           <Text style={s.durationText}>{episode.durationMinutes}min</Text>
@@ -167,18 +278,44 @@ function EpisodeEmptyState() {
 
 // ─── Main Screen ────────────────────────────────────────
 
+const EPISODES_PREVIEW = 6;
+
 export default function ChannelHomeScreen() {
   const { userProfile, channelInfo } = useAppStore();
+  const [showAll, setShowAll] = useState(false);
   const tags = [userProfile.job, userProfile.location, ...(userProfile.hobbies.length > 0 ? [userProfile.hobbies[0] + " lover"] : [])].filter(Boolean).join(" · ");
+
+  // 구독자 카운터 애니메이션 — subscriberCount 변화 시 부드럽게 증가
+  const subCounter = useSharedValue(channelInfo.subscriberCount);
+  useEffect(() => {
+    subCounter.value = withTiming(channelInfo.subscriberCount, {
+      duration: 1000,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [channelInfo.subscriberCount]);
+
+  const animatedSubProps = useAnimatedProps(() => ({
+    text: formatSubsWorklet(subCounter.value),
+    defaultValue: formatSubsWorklet(subCounter.value),
+  } as any));
 
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {/* ═══ BANNER ═══ */}
         <View style={s.bannerWrap}>
-          <View style={s.bannerBg} />
-          <View style={[s.center, StyleSheet.absoluteFill]}>
-            <Text style={s.bannerText}>VLOG</Text>
+          {/* 배경 */}
+          <View style={StyleSheet.absoluteFill}>
+            <View style={s.bannerBase} />
+            {/* 추상 도형 */}
+            <View style={s.bannerCircle1} />
+            <View style={s.bannerCircle2} />
+            <View style={s.bannerCircle3} />
+            <View style={s.bannerLine} />
+          </View>
+          {/* CHANNEL ART 레이블 */}
+          <View style={s.bannerArtLabel}>
+            <Text style={s.bannerArtText}>CHANNEL ART</Text>
           </View>
           <Pressable style={s.menuBtn}>
             <Ionicons name="ellipsis-vertical" size={18} color={C.gray1} />
@@ -190,7 +327,11 @@ export default function ChannelHomeScreen() {
           {/* Avatar row */}
           <View style={[s.row, { alignItems: "flex-end" }]}>
             <View style={s.avatar}>
-              <Text style={s.avatarText}>JW</Text>
+              {userProfile.avatarIconName ? (
+                <Ionicons name={userProfile.avatarIconName as any} size={34} color={C.white} />
+              ) : (
+                <Text style={s.avatarText}>{userProfile.name.trim().slice(0, 2).toUpperCase() || "ME"}</Text>
+              )}
             </View>
             <View style={{ marginLeft: 12, marginBottom: 4 }}>
               <CreatorBadge badge={channelInfo.badge} />
@@ -205,10 +346,22 @@ export default function ChannelHomeScreen() {
             <Text style={s.handleText}>{tags}</Text>
           </View>
 
-          {/* Subscriber count — BIG */}
-          <View style={[s.row, { marginTop: 16, alignItems: "baseline" }]}>
-            <Text style={s.subCount}>{formatSubs(channelInfo.subscriberCount)}</Text>
-            <Text style={s.subLabel}>subscribers</Text>
+          {/* Subscriber count — BIG (Reanimated 카운터) */}
+          <View style={[s.row, { marginTop: 16, alignItems: "center" }]}>
+            <View style={[s.row, { alignItems: "baseline" }]}>
+              <AnimatedTextInput
+                style={s.subCount}
+                editable={false}
+                animatedProps={animatedSubProps}
+              />
+              <Text style={s.subLabel}>subscribers</Text>
+            </View>
+            {channelInfo.subscriberHistory && channelInfo.subscriberHistory.length >= 2 && (
+              <View style={{ marginLeft: 14 }}>
+                <MiniLineChart data={channelInfo.subscriberHistory} width={80} height={36} />
+                <Text style={s.chartLabel}>7일 추이</Text>
+              </View>
+            )}
           </View>
 
           {/* Stats row */}
@@ -235,9 +388,6 @@ export default function ChannelHomeScreen() {
           </View>
         </View>
 
-        {/* ═══ BADGE MILESTONES ═══ */}
-        <BadgeMilestones subscriberCount={channelInfo.subscriberCount} badge={channelInfo.badge} />
-
         {/* ═══ EPISODES ═══ */}
         <View style={{ marginTop: 20 }}>
           {/* Header */}
@@ -249,12 +399,6 @@ export default function ChannelHomeScreen() {
                 <Text style={s.countBadgeText}>{channelInfo.episodes.length}</Text>
               </View>
             </View>
-            {channelInfo.episodes.length > 0 && (
-              <Pressable style={[s.row, { alignItems: "center" }]}>
-                <Text style={{ color: C.gray1, fontSize: 12, marginRight: 2 }}>전체보기</Text>
-                <Ionicons name="chevron-forward" size={14} color={C.gray1} />
-              </Pressable>
-            )}
           </View>
           <View style={s.divider} />
 
@@ -262,13 +406,24 @@ export default function ChannelHomeScreen() {
           {channelInfo.episodes.length === 0 ? (
             <EpisodeEmptyState />
           ) : (
-            <View style={s.grid}>
-              {channelInfo.episodes.map((ep) => (
-                <EpisodeCard key={ep.id} episode={ep} />
-              ))}
-            </View>
+            <>
+              <View style={s.grid}>
+                {(showAll ? channelInfo.episodes : channelInfo.episodes.slice(0, EPISODES_PREVIEW)).map((ep) => (
+                  <EpisodeCard key={ep.id} episode={ep} />
+                ))}
+              </View>
+              {channelInfo.episodes.length > EPISODES_PREVIEW && (
+                <Pressable style={s.showMoreBtn} onPress={() => setShowAll((v) => !v)}>
+                  <Text style={s.showMoreText}>{showAll ? "접기" : `더보기 (+${channelInfo.episodes.length - EPISODES_PREVIEW})`}</Text>
+                  <Ionicons name={showAll ? "chevron-up" : "chevron-down"} size={14} color={C.gray2} />
+                </Pressable>
+              )}
+            </>
           )}
         </View>
+
+        {/* ═══ BADGE MILESTONES ═══ */}
+        <BadgeMilestones subscriberCount={channelInfo.subscriberCount} badge={channelInfo.badge} />
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -284,9 +439,28 @@ const s = StyleSheet.create({
   center: { alignItems: "center", justifyContent: "center" },
 
   // Banner
-  bannerWrap: { height: 130, backgroundColor: "#111", position: "relative" },
-  bannerBg: { ...StyleSheet.absoluteFillObject, backgroundColor: C.bg, opacity: 0.3 },
-  bannerText: { color: "#222", fontSize: 56, fontWeight: "900", letterSpacing: -2, opacity: 0.3 },
+  bannerWrap: { height: 160, position: "relative", overflow: "hidden" },
+  bannerBase: { ...StyleSheet.absoluteFillObject, backgroundColor: "#1A0A0A" },
+  bannerCircle1: {
+    position: "absolute", width: 220, height: 220, borderRadius: 110,
+    backgroundColor: "#FF0000", opacity: 0.07, top: -60, right: -40,
+  },
+  bannerCircle2: {
+    position: "absolute", width: 140, height: 140, borderRadius: 70,
+    backgroundColor: "#FF4444", opacity: 0.06, bottom: -50, left: 30,
+  },
+  bannerCircle3: {
+    position: "absolute", width: 80, height: 80, borderRadius: 40,
+    backgroundColor: "#FFFFFF", opacity: 0.03, top: 20, left: "45%",
+  },
+  bannerLine: {
+    position: "absolute", height: 1, left: 0, right: 0, bottom: 40,
+    backgroundColor: "#FF0000", opacity: 0.08,
+  },
+  bannerArtLabel: {
+    position: "absolute", bottom: 10, right: 14,
+  },
+  bannerArtText: { color: "#333", fontSize: 9, fontWeight: "700", letterSpacing: 2 },
   menuBtn: {
     position: "absolute", top: 12, right: 12,
     width: 36, height: 36, borderRadius: 18,
@@ -309,6 +483,7 @@ const s = StyleSheet.create({
   // Subscriber
   subCount: { color: C.white, fontSize: 38, fontWeight: "900", letterSpacing: -1 },
   subLabel: { color: C.gray2, fontSize: 15, fontWeight: "600", marginLeft: 8 },
+  chartLabel: { color: C.gray3, fontSize: 9, fontWeight: "600", letterSpacing: 0.5, marginTop: 3, textAlign: "center" },
 
   // Stats
   statsRow: {
@@ -341,10 +516,21 @@ const s = StyleSheet.create({
   countBadgeText: { color: C.white, fontSize: 10, fontWeight: "700" },
   divider: { height: 1, backgroundColor: C.card, marginHorizontal: 16, marginBottom: 12 },
   grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: CARD_PADDING, gap: CARD_GAP },
+  showMoreBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, paddingVertical: 14, marginHorizontal: CARD_PADDING,
+    backgroundColor: C.card, borderRadius: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: C.border,
+  },
+  showMoreText: { color: C.gray2, fontSize: 13, fontWeight: "600" },
 
   // Episode card
   thumbWrap: { borderRadius: 12, overflow: "hidden", position: "relative" },
-  thumbInner: { flex: 1, backgroundColor: C.card2, alignItems: "center", justifyContent: "center" },
+  thumbInner: { flex: 1, alignItems: "center", justifyContent: "center" },
+  thumbScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.15)",
+  },
   durationBadge: {
     position: "absolute", bottom: 6, right: 6,
     backgroundColor: "rgba(0,0,0,0.8)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
@@ -355,6 +541,12 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(255,0,0,0.9)", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
   },
   seriesText: { color: C.white, fontSize: 9, fontWeight: "700" },
+  hitBadge: {
+    position: "absolute", top: 6, right: 6,
+    backgroundColor: "rgba(0,0,0,0.75)", borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  hitBadgeText: { fontSize: 9, fontWeight: "700" },
   epTitle: { color: C.white, fontSize: 13, fontWeight: "600", lineHeight: 18 },
   epMeta: { color: C.gray2, fontSize: 11 },
 });

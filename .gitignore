@@ -37,7 +37,11 @@ yarn-error.*
 
 # Firebase
 google-services.json
-GoogleService-Info.plist
+# GoogleService-Info.plist — EAS Build에서 필요하므로 git 추적
+
+# OAuth client secret files
+client_*.plist
+client_secret_*.json
 
 # typescript
 *.tsbuildinfo
@@ -45,3 +49,4 @@ GoogleService-Info.plist
 # generated native folders
 /ios
 /android
+/docs
