@@ -54,7 +54,7 @@ GoogleSignin.configure({
 
 export default function LoginScreen() {
   const router = useRouter();
-  const isOnboarded = useAppStore((s) => s.isOnboarded);
+  const loadDemoAccount = useAppStore((s) => s.loadDemoAccount);
 
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
@@ -96,8 +96,8 @@ export default function LoginScreen() {
         const credential = GoogleAuthProvider.credential(idToken);
         await signInWithCredential(auth, credential);
 
-        // 온보딩 상태에 따라 라우팅
-        router.replace(isOnboarded ? "/(tabs)" : "/onboarding");
+        // index.tsx의 Redirect 로직에 일임 (Firestore 로드 후 isOnboarded 확인)
+        router.replace("/");
       }
       // cancelled response → 에러 표시 안 함
     } catch (err: any) {
@@ -136,7 +136,8 @@ export default function LoginScreen() {
       } else {
         await signInWithEmailAndPassword(auth, email.trim(), password);
       }
-      router.replace(isOnboarded ? "/(tabs)" : "/onboarding");
+      // index.tsx의 Redirect 로직에 일임 (Firestore 로드 후 isOnboarded 확인)
+      router.replace("/");
     } catch (err: any) {
       const code = err.code as string;
       const msg =
@@ -297,6 +298,24 @@ export default function LoginScreen() {
               </Text>
             </Text>
           </TouchableOpacity>
+
+          {/* 데모 체험 */}
+          <View style={styles.demoDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>또는</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          <TouchableOpacity
+            style={styles.demoBtn}
+            activeOpacity={0.7}
+            onPress={() => {
+              loadDemoAccount();
+              router.replace("/(tabs)");
+            }}
+          >
+            <Ionicons name="play-circle-outline" size={16} color="#888" />
+            <Text style={styles.demoBtnText}>데모로 체험하기</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -454,5 +473,28 @@ const styles = StyleSheet.create({
   toggleAccent: {
     color: "#FF0000",
     fontWeight: "600",
+  },
+  demoDivider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 4,
+    gap: 12,
+  },
+  demoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    borderRadius: 12,
+    height: 46,
+    marginTop: 8,
+  },
+  demoBtnText: {
+    color: "#888",
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

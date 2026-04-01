@@ -2,23 +2,45 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { User } from "firebase/auth";
-
+import { DEMO_CHANNEL_INFO, DEMO_USER_PROFILE, DEMO_LESSON_SCHEDULE } from "@/lib/demoData";
 // ─── Types ───────────────────────────────────────────────
 
-export type EnglishLevel =
-  | "Beginner"
-  | "Elementary"
-  | "Intermediate"
-  | "Upper-Intermediate"
-  | "Advanced";
+export type EnglishLevel = "Beginner" | "Intermediate" | "Advanced";
+export type Gender = "male" | "female" | "prefer_not_to_say";
 
 export interface UserProfile {
   name: string;
   channelHandle: string;
+  gender: Gender;
   job: string;
   location: string;
   hobbies: string[];
   englishLevel: EnglishLevel;
+  avatarIconName?: string; // Ionicons 아이콘명 — 설정 시 이니셜 대신 아이콘 표시
+}
+
+export interface ExpressionItem {
+  phrase: string;  // 영어 표현/문장
+  meaning: string; // 한국어 뜻
+  nuance: string;  // 뉘앙스 설명 (한국어, 1~2문장)
+}
+
+export interface Scene {
+  name: string;                    // e.g. "The Office Lobby (사원증을 목에 걸며)"
+  script: string;                  // 280~330자 내외
+  expressions?: ExpressionItem[];  // 이 씬의 학습 표현 5개
+}
+
+export interface LessonFeedback {
+  summary: string;           // 총평 (2~3문장)
+  corrections: string[];     // 에러 교정/개선 포인트 5가지
+  expressionTracking: {      // 표현 사용 트래킹
+    phrase: string;
+    used: boolean;
+    note: string;            // e.g. "1회 자연스럽게 사용", "미사용"
+  }[];
+  vocabularyTips: string[];  // 어휘 제안 (2~3개)
+  patternTips: string[];     // 패턴/문법 제안 (2~3개)
 }
 
 export interface Episode {
@@ -34,6 +56,11 @@ export interface Episode {
   seriesTotal: number | null;
   durationMinutes: number;
   emoji: string;
+  expressions?: ExpressionItem[];
+  scenes?: Scene[];
+  script?: string;       // legacy — scenes가 있으면 scenes 우선
+  hitAchieved?: boolean; // 스크립트 낭독 HIT 달성 여부
+  feedback?: LessonFeedback; // AI 생성 피드백 리포트
 }
 
 export interface ChannelInfo {
@@ -43,6 +70,17 @@ export interface ChannelInfo {
   badge: "none" | "bronze" | "silver" | "gold";
   streakDays: number;
   totalTalkTimeMinutes: number;
+  lastLessonDate: string; // "YYYY-MM-DD", empty string if never
+  subscriberHistory?: number[]; // 최근 7일 구독자수 (오래된 순)
+}
+
+export interface LessonReward {
+  base: number;
+  bonusItems: { reason: string; amount: number }[];
+  totalGained: number;
+  newStreakDays: number;
+  newSubscriberCount: number;
+  unlockedBadge: ChannelInfo["badge"] | null;
 }
 
 export interface LessonSchedule {
@@ -61,7 +99,10 @@ interface AppState {
   channelInfo: ChannelInfo;
   setChannelInfo: (info: Partial<ChannelInfo>) => void;
   addEpisode: (episode: Episode) => void;
+  removeEpisode: (id: string) => void;
+  updateEpisode: (id: string, patch: Partial<Episode>) => void;
   addSubscribers: (count: number) => void;
+  completeLesson: () => LessonReward | null;
 
   // Lesson Schedule
   lessonSchedule: LessonSchedule;
@@ -76,139 +117,32 @@ interface AppState {
   // Onboarding
   completeOnboarding: (profile: UserProfile, channelName: string, schedule: LessonSchedule) => void;
 
+  // Demo
+  loadDemoAccount: () => void;
+
+  // Episode
+  markEpisodeHit: (id: string) => void;
+
   // Auth
   user: User | null;
   isAuthLoaded: boolean;
   setUser: (user: User | null) => void;
   setAuthLoaded: (loaded: boolean) => void;
 
+  // Reset
+  resetStore: () => void;
+
   // Hydration
   _hasHydrated: boolean;
   setHasHydrated: (hydrated: boolean) => void;
 }
-
-// ─── Dummy Episodes (PRD Day 1~15 시뮬레이션) ─────────
-
-const dummyEpisodes: Episode[] = [
-  {
-    id: "ep-15",
-    title: "Gangnam Brunch Date",
-    thumbnailUrl: null,
-    date: "2026-04-08",
-    expressionsUsed: 5,
-    expressionsTotal: 5,
-    wpm: 42,
-    seriesName: "Travel Series",
-    seriesOrder: 1,
-    seriesTotal: 3,
-    durationMinutes: 15,
-    emoji: "🍳",
-  },
-  {
-    id: "ep-14",
-    title: "New Gym Routine",
-    thumbnailUrl: null,
-    date: "2026-04-07",
-    expressionsUsed: 4,
-    expressionsTotal: 5,
-    wpm: 40,
-    seriesName: null,
-    seriesOrder: null,
-    seriesTotal: null,
-    durationMinutes: 15,
-    emoji: "💪",
-  },
-  {
-    id: "ep-13",
-    title: "Shopping Mall Haul 3/3",
-    thumbnailUrl: null,
-    date: "2026-04-04",
-    expressionsUsed: 5,
-    expressionsTotal: 5,
-    wpm: 41,
-    seriesName: "Shopping Mall",
-    seriesOrder: 3,
-    seriesTotal: 3,
-    durationMinutes: 15,
-    emoji: "🛍️",
-  },
-  {
-    id: "ep-12",
-    title: "Shopping Mall Haul 2/3",
-    thumbnailUrl: null,
-    date: "2026-04-02",
-    expressionsUsed: 4,
-    expressionsTotal: 5,
-    wpm: 39,
-    seriesName: "Shopping Mall",
-    seriesOrder: 2,
-    seriesTotal: 3,
-    durationMinutes: 15,
-    emoji: "🛒",
-  },
-  {
-    id: "ep-11",
-    title: "Shopping Mall Haul 1/3",
-    thumbnailUrl: null,
-    date: "2026-03-31",
-    expressionsUsed: 3,
-    expressionsTotal: 5,
-    wpm: 38,
-    seriesName: "Shopping Mall",
-    seriesOrder: 1,
-    seriesTotal: 3,
-    durationMinutes: 10,
-    emoji: "🏬",
-  },
-  {
-    id: "ep-10",
-    title: "Friday Night Out",
-    thumbnailUrl: null,
-    date: "2026-03-28",
-    expressionsUsed: 4,
-    expressionsTotal: 5,
-    wpm: 37,
-    seriesName: null,
-    seriesOrder: null,
-    seriesTotal: null,
-    durationMinutes: 15,
-    emoji: "🌙",
-  },
-  {
-    id: "ep-09",
-    title: "Midweek Coffee Run",
-    thumbnailUrl: null,
-    date: "2026-03-27",
-    expressionsUsed: 5,
-    expressionsTotal: 5,
-    wpm: 36,
-    seriesName: null,
-    seriesOrder: null,
-    seriesTotal: null,
-    durationMinutes: 10,
-    emoji: "☕",
-  },
-  {
-    id: "ep-08",
-    title: "Monday Morning Routine",
-    thumbnailUrl: null,
-    date: "2026-03-25",
-    expressionsUsed: 4,
-    expressionsTotal: 5,
-    wpm: 31,
-    seriesName: null,
-    seriesOrder: null,
-    seriesTotal: null,
-    durationMinutes: 10,
-    emoji: "☀️",
-  },
-];
 
 // ─── Default Values ──────────────────────────────────────
 
 const defaultUserProfile: UserProfile = {
   name: "",
   channelHandle: "",
+  gender: "prefer_not_to_say",
   job: "",
   location: "",
   hobbies: [],
@@ -222,6 +156,7 @@ const defaultChannelInfo: ChannelInfo = {
   badge: "none",
   streakDays: 0,
   totalTalkTimeMinutes: 0,
+  lastLessonDate: "",
 };
 
 const defaultLessonSchedule: LessonSchedule = {
@@ -233,7 +168,7 @@ const defaultLessonSchedule: LessonSchedule = {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // User Profile
       userProfile: defaultUserProfile,
       setUserProfile: (profile) =>
@@ -254,6 +189,22 @@ export const useAppStore = create<AppState>()(
             episodes: [episode, ...state.channelInfo.episodes],
           },
         })),
+      removeEpisode: (id) =>
+        set((state) => ({
+          channelInfo: {
+            ...state.channelInfo,
+            episodes: state.channelInfo.episodes.filter((e) => e.id !== id),
+          },
+        })),
+      updateEpisode: (id, patch) =>
+        set((state) => ({
+          channelInfo: {
+            ...state.channelInfo,
+            episodes: state.channelInfo.episodes.map((e) =>
+              e.id === id ? { ...e, ...patch } : e
+            ),
+          },
+        })),
       addSubscribers: (count) =>
         set((state) => {
           const newCount = state.channelInfo.subscriberCount + count;
@@ -270,6 +221,53 @@ export const useAppStore = create<AppState>()(
             },
           };
         }),
+
+      completeLesson: () => {
+        const { channelInfo } = get();
+        const today = new Date().toISOString().slice(0, 10);
+
+        // 연속 출석: 오늘 첫 수업이면 streak 갱신
+        const isFirstToday = channelInfo.lastLessonDate !== today;
+        const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+        const newStreak = !isFirstToday
+          ? channelInfo.streakDays  // 오늘 이미 수업함 — streak 유지
+          : channelInfo.lastLessonDate === yesterday
+            ? channelInfo.streakDays + 1
+            : 1;
+
+        const base = 100;
+        const bonusItems: { reason: string; amount: number }[] = [];
+        if (newStreak % 30 === 0) bonusItems.push({ reason: `${newStreak}일 연속`, amount: 5000 });
+        else if (newStreak % 15 === 0) bonusItems.push({ reason: "15일 연속", amount: 3000 });
+        else if (newStreak % 7 === 0) bonusItems.push({ reason: "7일 연속", amount: 2000 });
+        else if (newStreak % 3 === 0) bonusItems.push({ reason: "3일 연속", amount: 1000 });
+
+        const bonus = bonusItems.reduce((sum, item) => sum + item.amount, 0);
+        const totalGained = base + bonus;
+        const newSubscriberCount = channelInfo.subscriberCount + totalGained;
+
+        let newBadge = channelInfo.badge;
+        let unlockedBadge: ChannelInfo["badge"] | null = null;
+        if (newSubscriberCount >= 1_000_000 && channelInfo.badge !== "gold") {
+          newBadge = "gold"; unlockedBadge = "gold";
+        } else if (newSubscriberCount >= 100_000 && channelInfo.badge !== "silver" && channelInfo.badge !== "gold") {
+          newBadge = "silver"; unlockedBadge = "silver";
+        } else if (newSubscriberCount >= 10_000 && channelInfo.badge === "none") {
+          newBadge = "bronze"; unlockedBadge = "bronze";
+        }
+
+        set((state) => ({
+          channelInfo: {
+            ...state.channelInfo,
+            subscriberCount: newSubscriberCount,
+            streakDays: newStreak,
+            badge: newBadge,
+            lastLessonDate: today,
+          },
+        }));
+
+        return { base, bonusItems, totalGained, newStreakDays: newStreak, newSubscriberCount, unlockedBadge };
+      },
 
       // Lesson Schedule
       lessonSchedule: defaultLessonSchedule,
@@ -295,16 +293,47 @@ export const useAppStore = create<AppState>()(
             badge: "none",
             streakDays: 0,
             totalTalkTimeMinutes: 0,
+            lastLessonDate: "",
           },
           lessonSchedule: schedule,
           isOnboarded: true,
         }),
+
+      // Demo
+      loadDemoAccount: () =>
+        set({
+          userProfile: DEMO_USER_PROFILE,
+          channelInfo: DEMO_CHANNEL_INFO,
+          lessonSchedule: DEMO_LESSON_SCHEDULE,
+          isOnboarded: true,
+        }),
+
+      // Episode
+      markEpisodeHit: (id) =>
+        set((state) => ({
+          channelInfo: {
+            ...state.channelInfo,
+            episodes: state.channelInfo.episodes.map((ep) =>
+              ep.id === id ? { ...ep, hitAchieved: true } : ep
+            ),
+          },
+        })),
 
       // Auth
       user: null,
       isAuthLoaded: false,
       setUser: (user) => set({ user }),
       setAuthLoaded: (loaded) => set({ isAuthLoaded: loaded }),
+
+      // Reset (로그아웃/탈퇴 시 초기화)
+      resetStore: () =>
+        set({
+          userProfile: defaultUserProfile,
+          channelInfo: defaultChannelInfo,
+          lessonSchedule: defaultLessonSchedule,
+          isOnboarded: false,
+          isPremium: false,
+        }),
 
       // Hydration
       _hasHydrated: false,

@@ -20,22 +20,26 @@ export default function RootLayout() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
 
-      if (user) {
-        try {
-          const data = await loadUserData(user.uid);
-          if (data) {
-            setUserProfile(data.profile);
-            setChannelInfo(data.channelMeta);
-            setLessonSchedule(data.lessonSchedule);
-            setIsOnboarded(data.isOnboarded);
-          }
-        } catch (err) {
-          // Firestore 로드 실패 시 AsyncStorage 캐시로 폴백
-          console.warn("Firestore load failed:", err);
-        }
-      }
-
+      // AsyncStorage 캐시로 즉시 라우팅 결정 — Firestore는 백그라운드 동기화
       setAuthLoaded(true);
+
+      if (user) {
+        loadUserData(user.uid)
+          .then((data) => {
+            if (data) {
+              setUserProfile(data.profile);
+              setChannelInfo({
+                ...data.channelMeta,
+                episodes: data.episodes ?? [],
+              });
+              setLessonSchedule(data.lessonSchedule);
+              setIsOnboarded(data.isOnboarded);
+            }
+          })
+          .catch(() => {
+            // loadUserData 내부에서 에러 처리됨 — 캐시 데이터로 계속 진행
+          });
+      }
     });
     return unsubscribe;
   }, []);
@@ -54,6 +58,9 @@ export default function RootLayout() {
         <Stack.Screen name="login" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="paywall" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+        <Stack.Screen name="episode/[id]" />
+        <Stack.Screen name="profile-edit" />
       </Stack>
     </>
   );

@@ -2,10 +2,11 @@ import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { signOut } from "firebase/auth";
+import { signOut, deleteUser } from "firebase/auth";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { auth } from "@/lib/firebase";
 import { useAppStore } from "@/store/useAppStore";
+import { deleteUserData } from "@/lib/firestore";
 
 const C = { bg: "#0F0F0F", card: "#1A1A1A", red: "#FF0000", white: "#FFF", gray1: "#AAA", gray2: "#888", gray4: "#555" };
 
@@ -30,8 +31,55 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function SettingsScreen() {
-  const { userProfile, channelInfo, isPremium } = useAppStore();
+  const { userProfile, channelInfo, lessonSchedule, isPremium, user, resetStore } = useAppStore();
   const router = useRouter();
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "회원 탈퇴",
+      "정말 탈퇴하시겠어요?\n모든 데이터가 삭제되며 복구할 수 없습니다.",
+      [
+        { text: "취소", style: "cancel" },
+        {
+          text: "탈퇴하기",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "최종 확인",
+              "탈퇴 후 채널과 학습 기록이 모두 삭제됩니다.",
+              [
+                { text: "취소", style: "cancel" },
+                {
+                  text: "확인",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      const currentUser = auth.currentUser;
+                      if (currentUser) {
+                        await deleteUserData(currentUser.uid);
+                        await deleteUser(currentUser);
+                      }
+                      resetStore();
+                      router.replace("/login");
+                    } catch (err: any) {
+                      if (err.code === "auth/requires-recent-login") {
+                        Alert.alert(
+                          "재로그인 필요",
+                          "보안을 위해 로그아웃 후 다시 로그인한 뒤 탈퇴해주세요."
+                        );
+                      } else {
+                        Alert.alert("오류", "탈퇴 처리 중 오류가 발생했습니다.");
+                      }
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
 
   const handleSignOut = () => {
     Alert.alert("로그아웃", "정말 로그아웃 하시겠어요?", [
@@ -49,6 +97,7 @@ export default function SettingsScreen() {
             // Google signOut 실패해도 Firebase signOut 진행
           }
           await signOut(auth);
+          resetStore();
           router.replace("/login");
         },
       },
@@ -63,7 +112,7 @@ export default function SettingsScreen() {
         {/* Profile card */}
         <View style={s.profileCard}>
           <View style={s.profileAvatar}>
-            <Text style={s.profileInitials}>JW</Text>
+            <Text style={s.profileInitials}>{userProfile.name.trim().slice(0, 2).toUpperCase() || "ME"}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.profileName}>{userProfile.name}</Text>
@@ -76,19 +125,19 @@ export default function SettingsScreen() {
         </View>
 
         <Section title="채널 관리">
-          <Row icon="person-outline" label="프로필 수정" value={isPremium ? "무제한" : "월 1회"} />
+          <Row icon="person-outline" label="프로필 수정" onPress={() => router.push("/profile-edit")} />
           <Row icon="color-palette-outline" label="채널 스킨" value="기본" />
           <Row icon="text-outline" label="채널명 변경" />
         </Section>
 
         <Section title="수업 설정">
-          <Row icon="calendar-outline" label="수업 스케줄" value="월·수·금" />
-          <Row icon="time-outline" label="수업 시간" value="07:00" />
+          <Row icon="calendar-outline" label="수업 스케줄" value={lessonSchedule.days.join("·")} />
+          <Row icon="time-outline" label="수업 시간" value={lessonSchedule.timeSlots[0] || "-"} />
           <Row icon="language-outline" label="영어 레벨" value={userProfile.englishLevel} />
         </Section>
 
         <Section title="구독 & 결제">
-          <Row icon="card-outline" label="구독 관리" value={isPremium ? "Premium" : "Free"} />
+          <Row icon="card-outline" label="구독 관리" value={isPremium ? "Premium" : "Free"} onPress={() => router.push("/paywall")} />
           <Row icon="bag-outline" label="아이템 샵" />
           <Row icon="receipt-outline" label="구매 내역" />
         </Section>
@@ -102,6 +151,7 @@ export default function SettingsScreen() {
 
         <Section title="">
           <Row icon="log-out-outline" label="로그아웃" danger onPress={handleSignOut} />
+          <Row icon="trash-outline" label="회원 탈퇴" danger onPress={handleDeleteAccount} />
         </Section>
 
         <View style={{ height: 32 }} />

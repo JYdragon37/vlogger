@@ -9,7 +9,8 @@ export type EmmaEvent =
   | { type: "session_ready" }
   | { type: "audio_delta"; delta: string }        // base64 PCM16
   | { type: "audio_done" }
-  | { type: "transcript"; text: string }          // Emma 발화 텍스트
+  | { type: "transcript_delta"; delta: string }   // Emma 발화 텍스트 (실시간 조각)
+  | { type: "transcript"; text: string }          // Emma 발화 텍스트 (완료)
   | { type: "input_transcript"; text: string }    // 유저 발화 텍스트 (STT)
   | { type: "error"; message: string };
 
@@ -18,7 +19,6 @@ type EmmaEventHandler = (event: EmmaEvent) => void;
 export class EmmaSession {
   private ws: WebSocket | null = null;
   private handler: EmmaEventHandler | null = null;
-  private audioDeltaBuffer: string[] = [];
 
   // ─── 연결 ────────────────────────────────────────────
   connect(apiKey: string, systemPrompt: string): Promise<void> {
@@ -37,7 +37,10 @@ export class EmmaSession {
       );
 
       const ws = this.ws!;
+      let isConnected = false;
+
       ws.onopen = () => {
+        isConnected = true;
         this._sendEvent({
           type: "session.update",
           session: {
@@ -46,19 +49,20 @@ export class EmmaSession {
             instructions: systemPrompt,
             input_audio_format: "pcm16",
             output_audio_format: "pcm16",
-            input_audio_transcription: { model: "whisper-1" },
-            turn_detection: {
-              type: "server_vad",
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 700,
-            },
+            input_audio_transcription: { model: "whisper-1", language: "en" },
+            turn_detection: null,   // PTT 모드 — 클라이언트가 commit + response.create 호출
           },
         });
         resolve();
       };
 
-      ws.onerror = () => reject(new Error("WebSocket 연결 실패"));
+      ws.onerror = () => {
+        if (!isConnected) {
+          reject(new Error("WebSocket 연결 실패"));
+        } else {
+          this.handler?.({ type: "error", message: "네트워크 오류가 발생했습니다." });
+        }
+      };
       ws.onclose = () => {};
       ws.onmessage = (e) => this._handleMessage(e.data);
     });
@@ -93,7 +97,6 @@ export class EmmaSession {
     this.ws?.close();
     this.ws = null;
     this.handler = null;
-    this.audioDeltaBuffer = [];
   }
 
   // ─── 내부 메시지 처리 ─────────────────────────────────
@@ -111,17 +114,15 @@ export class EmmaSession {
         break;
 
       case "response.audio.delta":
-        this.audioDeltaBuffer.push(msg.delta);
         this.handler?.({ type: "audio_delta", delta: msg.delta });
         break;
 
       case "response.audio.done":
         this.handler?.({ type: "audio_done" });
-        this.audioDeltaBuffer = [];
         break;
 
       case "response.audio_transcript.delta":
-        // 실시간 텍스트는 무시 (done 이벤트만 사용)
+        this.handler?.({ type: "transcript_delta", delta: msg.delta ?? "" });
         break;
 
       case "response.audio_transcript.done":
@@ -213,26 +214,26 @@ export function buildEmmaPrompt(params: {
   expressions: string[];
   englishLevel: string;
 }): string {
-  return `You are Emma, a warm and encouraging English speaking coach for Korean learners.
+  return `You are Emma, a fun and encouraging English speaking coach for Korean learners.
 
-You are calling ${params.userName} for their scheduled English vlog lesson. Your goal is to help them practice speaking naturally using today's vlog script.
+You are calling ${params.userName} for their English vlog lesson. ${params.userName} has already read today's script, so jump straight into conversation — do NOT ask them to read it.
 
-Today's script topic and content:
+Today's vlog script (use this as the core topic for your entire conversation):
 "${params.script}"
 
-Key expressions to practice: ${params.expressions.join(", ")}
+5 key expressions to practice: ${params.expressions.join(", ")}
 
 Student's English level: ${params.englishLevel}
 
-Instructions:
-- Speak naturally and at an appropriate pace for their level
-- Start by greeting ${params.userName} and briefly introducing today's lesson topic
-- Ask them to read the script aloud and gently correct pronunciation or grammar if needed
-- Help them use the 5 key expressions naturally in conversation
-- Be encouraging, specific in feedback, and keep energy upbeat
-- Keep responses concise (2-3 sentences max) to maintain conversation flow
-- After they've practiced the script, have a short natural conversation about the topic
-- The total call should feel like 5-10 minutes
+CALL GOAL: By the end of this call, ${params.userName} should have used each of the 5 expressions AT LEAST ONCE — ideally multiple times. This is the #1 purpose of this call. Actively steer the conversation to create natural opportunities for every expression to come up. Keep mental track of which ones ${params.userName} has used and which ones are still missing.
 
-Begin by greeting ${params.userName} warmly and introducing today's lesson.`;
+YOUR ROLE THROUGHOUT THE CALL:
+1. Keep the conversation ALWAYS tied to the vlog script's topic and scenes. Ask questions about what happened in the script, share your thoughts on it, relate it to real life.
+2. Actively USE the 5 key expressions yourself in natural sentences to model them. When ${params.userName} hasn't used an expression yet, weave it into a question or gently prompt: "How would you say that using '${params.expressions[0]}'?"
+3. When ${params.userName} uses one of the 5 expressions — even partially or imperfectly — ALWAYS react: give a quick comment, praise, or feedback specific to that expression. Examples: "Yes! '${params.expressions[1]}' — that's exactly the right situation!", "Love that you used '${params.expressions[1]}' there, very natural!", "Good try! Just say '${params.expressions[1]}' — like: [example sentence]."
+4. Correct mistakes gently: repeat the correct form naturally, don't dwell on it.
+5. Keep responses SHORT — 1-2 sentences max. This is a conversation, not a lecture.
+6. Energy: warm, enthusiastic, like a fun friend who happens to be a great teacher.
+
+Start: greet ${params.userName} and immediately ask an engaging question about the vlog topic to kick off the conversation.`;
 }

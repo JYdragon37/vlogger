@@ -23,14 +23,12 @@ const C = {
 
 export default function CompleteScreen() {
   const setIsOnboarded = useAppStore((s) => s.setIsOnboarded);
+  // UI 표시용 — 렌더링에만 사용
   const channelName = useAppStore((s) => s.channelInfo.channelName);
   const userName = useAppStore((s) => s.userProfile.name);
-  const user = useAppStore((s) => s.user);
-  const userProfile = useAppStore((s) => s.userProfile);
-  const channelInfo = useAppStore((s) => s.channelInfo);
-  const lessonSchedule = useAppStore((s) => s.lessonSchedule);
 
   const [phase, setPhase] = useState<"loading" | "done">("loading");
+  const innerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Animations
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -51,18 +49,19 @@ export default function CompleteScreen() {
 
     // After 2 seconds, switch to "done" phase
     const timer = setTimeout(() => {
-      // Firestore에 유저 데이터 저장 (fire and forget)
-      if (user?.uid) {
-        saveUserData(user.uid, {
-          profile: userProfile,
+      // Firestore에 유저 데이터 저장 — getState()로 저장 시점 최신 값 사용
+      const s = useAppStore.getState();
+      if (s.user?.uid) {
+        saveUserData(s.user.uid, {
+          profile: s.userProfile,
           channelMeta: {
-            channelName: channelInfo.channelName,
-            subscriberCount: channelInfo.subscriberCount,
-            badge: channelInfo.badge,
-            streakDays: channelInfo.streakDays,
-            totalTalkTimeMinutes: channelInfo.totalTalkTimeMinutes,
+            channelName: s.channelInfo.channelName,
+            subscriberCount: s.channelInfo.subscriberCount,
+            badge: s.channelInfo.badge,
+            streakDays: s.channelInfo.streakDays,
+            totalTalkTimeMinutes: s.channelInfo.totalTalkTimeMinutes,
           },
-          lessonSchedule,
+          lessonSchedule: s.lessonSchedule,
           isOnboarded: true,
         }).catch((err) => console.error("Firestore save failed:", err));
       }
@@ -90,13 +89,16 @@ export default function CompleteScreen() {
       ]).start();
 
       // Navigate to tabs after showing the completion for 2 more seconds
-      setTimeout(() => {
+      innerTimerRef.current = setTimeout(() => {
         setIsOnboarded(true);
         router.replace("/(tabs)");
       }, 2000);
     }, 2000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (innerTimerRef.current) clearTimeout(innerTimerRef.current);
+    };
   }, []);
 
   const spin = spinAnim.interpolate({
