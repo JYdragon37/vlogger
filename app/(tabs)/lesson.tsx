@@ -515,8 +515,19 @@ function LessonRewardModal({
 
 // ─── Cultural Note Component ────────────────────────────
 
+function BoldText({ text, style }: { text: string; style: any }) {
+  const parts = text.split(/\*\*(.+?)\*\*/g);
+  return (
+    <Text style={style}>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? <Text key={i} style={[style, { fontWeight: "700", color: "#D4F0D4" }]}>{part}</Text>
+                    : <Text key={i}>{part}</Text>
+      )}
+    </Text>
+  );
+}
+
 function CulturalNoteCard({ culturalTitle, culturalNote, userName }: { culturalTitle?: string; culturalNote: string; userName: string }) {
-  // Split note into term blocks (separated by double newline)
   const termBlocks = culturalNote.split(/\n\n/).filter(Boolean);
 
   return (
@@ -532,11 +543,11 @@ function CulturalNoteCard({ culturalTitle, culturalNote, userName }: { culturalT
           return (
             <View key={i} style={i > 0 ? { marginTop: 14 } : { marginTop: 10 }}>
               <Text style={s.culturalTerm}>{term}</Text>
-              <Text style={s.culturalText}>{desc}</Text>
+              <BoldText text={desc} style={s.culturalText} />
             </View>
           );
         }
-        return <Text key={i} style={[s.culturalText, i > 0 && { marginTop: 10 }]}>{block}</Text>;
+        return <BoldText key={i} text={block} style={[s.culturalText, i > 0 && { marginTop: 10 }]} />;
       })}
     </View>
   );
@@ -616,16 +627,17 @@ function FlashcardQuiz({ expressions, onFinish }: { expressions: ExpressionWithE
 
   // 영어 문장에서 핵심 표현을 ____ 로 치환
   const makeBlank = (example: string, phrase: string) => {
+    const cleanExample = example.replace(/\*\*/g, "");
     const clean = phrase.replace(/\s*\+\s*\w+/g, "").replace(/\s*~\s*/g, "").trim();
-    const lowerEx = example.toLowerCase();
+    const lowerEx = cleanExample.toLowerCase();
     const lowerPh = clean.toLowerCase();
     const idx = lowerEx.indexOf(lowerPh);
     if (idx >= 0) {
-      const before = example.slice(0, idx);
-      const after = example.slice(idx + clean.length);
-      return { before, blank: "____", after, hint: makeHint(clean), clean };
+      const before = cleanExample.slice(0, idx);
+      const after = cleanExample.slice(idx + clean.length);
+      return { before, blank: makeHint(clean), after, clean };
     }
-    return { before: example, blank: "", after: "", hint: "", clean };
+    return { before: cleanExample, blank: "", after: "", clean };
   };
 
   const handleSubmit = () => {
@@ -697,7 +709,6 @@ function FlashcardQuiz({ expressions, onFinish }: { expressions: ExpressionWithE
         <Text style={s.quizSentence}>
           {blanked.before}<Text style={s.quizBlank}>{blanked.blank}</Text>{blanked.after}
         </Text>
-        {blanked.hint ? <Text style={s.quizHint}>{blanked.hint}</Text> : null}
         <Text style={s.quizPrompt}>빈칸에 들어갈 표현은?</Text>
       </View>
 
@@ -752,7 +763,7 @@ function LessonContent({ script, onCallStart, onRegen, onQuizFinish }: {
       {/* Topic Badge */}
       <View style={s.topicBadge}>
         <Ionicons name="videocam" size={14} color={C.red} />
-        <Text style={s.topicText} numberOfLines={1}>{script.topic}</Text>
+        <Text style={s.topicText}>{script.topic}</Text>
       </View>
 
       {/* Cultural Note Card */}
@@ -1292,7 +1303,7 @@ const s = StyleSheet.create({
   },
   exprStickyLabel: { color: "#FF9800", fontSize: 11, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 },
   exprStickyList: { gap: 2 },
-  exprStickyItem: { color: "#888", fontSize: 12, lineHeight: 18 },
+  exprStickyItem: { color: "#CCCCCC", fontSize: 14, fontWeight: "700", lineHeight: 22 },
 
   // 채팅 영역
   chatScroll: { flex: 1 },
@@ -1321,7 +1332,7 @@ const s = StyleSheet.create({
   msgTextUser: { color: C.white },
 
   callControls: {
-    flexDirection: "row", alignItems: "center",
+    flexDirection: "row", alignItems: "flex-end",
     paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: "#1A1A2A", gap: 16,
   },
