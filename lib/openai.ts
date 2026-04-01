@@ -49,24 +49,22 @@ CONCEPT: A "1타 강사 (top teacher)" English vlog episode with:
 2. A 3-scene English vlog script where THE STUDENT IS THE VLOGGER (first-person)
 3. 5 high-quality real-world expressions with Korean explanations
 
-TOPIC — DIVERSITY RULES (엄격히 준수):
-❌ 절대 금지: 마트 장보기, 커피숍 방문, 식료품 쇼핑 관련 주제
-✅ 반드시 아래 카테고리 중 하나를 선택하되, 유저의 job(${profile.job || "professional"}) 또는 hobbies(${hobbiesText})와 연결할 것:
+TOPIC — 아래 카테고리에서 하나를 골라 유저 프로필과 연결할 것. 매번 다른 카테고리로 rotate하여 다양성을 극대화:
 
-카테고리 예시 (이중 하나를 선택, 매번 다른 카테고리로 rotate):
-- 직장/커리어: 첫 출근, 업무 미팅, 팀런치, 네트워킹 이벤트, 컨퍼런스, 재택근무 세팅
+- 마트/쇼핑: Costco 대용량 쇼핑, Target 리턴 정책, Black Friday, FB Marketplace 중고 거래
+- 카페/음식: 스타벅스 커스텀 오더, 브런치 맛집 웨이팅, 푸드트럭, BBQ 파티, 레스토랑 그룹 디너
+- 직장/커리어: 첫 출근(job: ${profile.job || "professional"}), 업무 미팅, 팀런치, 네트워킹 이벤트, 컨퍼런스
 - 주거: 아파트 헌팅, 이사, 이웃과의 첫 만남, 집들이(Housewarming)
-- 의료/건강: ER 방문, 처방전 받기, 피트니스 PT 첫날, 건강검진
-- 교육/자기계발: 도서관, 커뮤니티 칼리지 등록, 워크샵 참가
-- 스포츠/피트니스: 짐 등록, 마라톤 레이스데이, 스포츠 리그, 아웃도어 하이킹
-- 사교: 홈파티, 브런치, 첫 소개팅(Dating App 이후), 동창 모임, 게임나이트
-- 쇼핑/소비: Black Friday, 리턴 정책 활용, FB Marketplace 중고 거래, 온라인 딜헌팅
-- 이동/교통: Lyft/Uber 경험, 로드트립, 공항 출장, 대중교통 첫 이용
-- 엔터테인먼트: 콘서트, 스포츠 관람(NBA/MLB), 영화 시사회, 뮤지컬
-- 지역사회: 자원봉사, 파머스 마켓, 주민 행사, HOA 미팅
-- 음식/외식: 브런치 맛집 웨이팅, 푸드트럭, BBQ 파티, 레스토랑 그룹 디너
+- 의료/건강: ER 방문, CVS 처방전, 피트니스 PT 첫날, 건강검진
+- 교육/자기계발: 도서관, 커뮤니티 칼리지 등록, 워크샵, 온라인 강의
+- 스포츠/피트니스: 짐 등록(hobbies: ${hobbiesText}), 마라톤 레이스데이, 스포츠 리그, 아웃도어 하이킹
+- 사교: 홈파티, 브런치, 소개팅(Dating App), 동창 모임, 게임나이트
+- 이동/교통: Lyft/Uber, 로드트립, 공항 출장, 대중교통 첫 이용
+- 엔터테인먼트: 콘서트, NBA/MLB 관람, 영화 시사회, 뮤지컬
+- 지역사회: 자원봉사, 파머스 마켓, 주민 행사
 
-TOPIC 선택 후: 해당 주제를 REAL 미국 장소/브랜드명과 함께 구체화할 것 (예: Equinox 짐, REI 아웃도어, WeWork 오피스, Whole Foods 딜리버리 앱 등)
+⭐ 유저의 job(${profile.job || "professional"})과 hobbies(${hobbiesText})를 주제 선택의 우선 힌트로 활용할 것.
+TOPIC 선택 후: REAL 미국 장소/브랜드명으로 구체화 (Equinox, REI, WeWork, Trader Joe's, Target, In-N-Out 등)
 Make the listener feel like they are actually THERE in America.${charactersText ? `
 
 CHARACTERS — 등장인물 (상황에 맞으면 스크립트에 자연스럽게 배치):
