@@ -855,6 +855,7 @@ export default function LessonScreen() {
         location: userProfile.location,
         hobbies: userProfile.hobbies,
         englishLevel: userProfile.englishLevel,
+        characters: userProfile.characters,
       });
       setScript(result);
       setStatus("done");

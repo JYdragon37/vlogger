@@ -8,6 +8,12 @@ import { DEMO_CHANNEL_INFO, DEMO_USER_PROFILE, DEMO_LESSON_SCHEDULE } from "@/li
 export type EnglishLevel = "Beginner" | "Intermediate" | "Advanced";
 export type Gender = "male" | "female" | "prefer_not_to_say";
 
+export interface Character {
+  name: string;         // 영어 이름 권장 (예: Mike, Sarah)
+  relationship: string; // 관계 (예: 직장 동료, 룸메이트, 친구)
+  job?: string;         // 직업 (선택)
+}
+
 export interface UserProfile {
   name: string;
   channelHandle: string;
@@ -17,6 +23,7 @@ export interface UserProfile {
   hobbies: string[];
   englishLevel: EnglishLevel;
   avatarIconName?: string; // Ionicons 아이콘명 — 설정 시 이니셜 대신 아이콘 표시
+  characters?: Character[]; // 등장인물 (최대 5명, 스크립트에 자연스럽게 배치)
 }
 
 export interface ExpressionItem {
