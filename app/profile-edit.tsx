@@ -108,9 +108,20 @@ export default function ProfileEditScreen() {
 
     // Firestore 동기화 — 실패해도 로컬은 이미 저장됨
     if (user?.uid) {
+      // Firestore는 undefined 값 거부 → null 또는 필드 제거로 정리
+      const cleanCharacters = (updatedProfile.characters ?? []).map((c) => ({
+        name: c.name,
+        relationship: c.relationship,
+        ...(c.job ? { job: c.job } : {}),
+      }));
+      const firestoreProfile = {
+        ...updatedProfile,
+        characters: cleanCharacters.length > 0 ? cleanCharacters : null,
+        ...(userProfile.avatarIconName ? { avatarIconName: userProfile.avatarIconName } : {}),
+      };
       try {
         await saveUserData(user.uid, {
-          profile: { ...updatedProfile, ...(userProfile.avatarIconName ? { avatarIconName: userProfile.avatarIconName } : {}) },
+          profile: firestoreProfile,
           channelMeta: {
             channelName: finalChannelName,
             subscriberCount: channelInfo.subscriberCount,
