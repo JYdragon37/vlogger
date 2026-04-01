@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, Platform, StatusBar } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -93,18 +93,20 @@ function FeedbackDetailModal({ episode, onClose }: { episode: Episode | null; on
               </View>
 
               {/* 에러 교정 / 개선 포인트 */}
-              <View style={s.fbSection}>
-                <View style={s.fbSectionHeader}>
-                  <Ionicons name="construct-outline" size={16} color="#FF6B6B" />
-                  <Text style={s.fbSectionTitle}>개선 포인트</Text>
-                </View>
-                {fb.corrections.map((c, i) => (
-                  <View key={i} style={s.correctionRow}>
-                    <Text style={s.correctionNum}>{i + 1}</Text>
-                    <Text style={s.correctionText}>{c}</Text>
+              {fb.corrections.length > 0 && (
+                <View style={s.fbSection}>
+                  <View style={s.fbSectionHeader}>
+                    <Ionicons name="construct-outline" size={16} color="#FF6B6B" />
+                    <Text style={s.fbSectionTitle}>개선 포인트</Text>
                   </View>
-                ))}
-              </View>
+                  {fb.corrections.map((c, i) => (
+                    <View key={i} style={s.correctionRow}>
+                      <Text style={s.correctionNum}>{i + 1}</Text>
+                      <Text style={s.correctionText}>{c}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               {/* 어휘 제안 */}
               {fb.vocabularyTips.length > 0 && (
@@ -318,8 +320,11 @@ export default function FeedbackScreen() {
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
 
   // 에피소드 상세에서 직접 이동한 경우 자동 오픈
+  // deps: params.episodeId만 감지 — episodes 변경(피드백 비동기 업데이트)에는 반응하지 않음
+  const autoOpenedEpisodeIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (params.episodeId) {
+    if (params.episodeId && params.episodeId !== autoOpenedEpisodeIdRef.current) {
+      autoOpenedEpisodeIdRef.current = params.episodeId;
       const ep = episodes.find((e) => e.id === params.episodeId);
       if (ep) setSelectedEpisode(ep);
     }

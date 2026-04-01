@@ -1,4 +1,4 @@
-import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from "react-native";
+import { View, Text, Pressable, ScrollView, StyleSheet, Alert, ToastAndroid, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -28,6 +28,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <View style={s.sectionCard}>{children}</View>
     </View>
   );
+}
+
+// 미구현 기능 안내 — 공통 핸들러
+function showComingSoon(label: string) {
+  Alert.alert("준비 중", `"${label}" 기능은 곧 출시됩니다!`);
 }
 
 export default function SettingsScreen() {
@@ -126,27 +131,27 @@ export default function SettingsScreen() {
 
         <Section title="채널 관리">
           <Row icon="person-outline" label="프로필 수정" onPress={() => router.push("/profile-edit")} />
-          <Row icon="color-palette-outline" label="채널 스킨" value="기본" />
-          <Row icon="text-outline" label="채널명 변경" />
+          <Row icon="color-palette-outline" label="채널 스킨" value="기본" onPress={() => showComingSoon("채널 스킨")} />
+          <Row icon="text-outline" label="채널명 변경" onPress={() => showComingSoon("채널명 변경")} />
         </Section>
 
         <Section title="수업 설정">
-          <Row icon="calendar-outline" label="수업 스케줄" value={lessonSchedule.days.join("·")} />
-          <Row icon="time-outline" label="수업 시간" value={lessonSchedule.timeSlots[0] || "-"} />
-          <Row icon="language-outline" label="영어 레벨" value={userProfile.englishLevel} />
+          <Row icon="calendar-outline" label="수업 스케줄" value={lessonSchedule.days.join("·")} onPress={() => showComingSoon("수업 스케줄")} />
+          <Row icon="time-outline" label="수업 시간" value={lessonSchedule.timeSlots[0] || "-"} onPress={() => showComingSoon("수업 시간")} />
+          <Row icon="language-outline" label="영어 레벨" value={userProfile.englishLevel} onPress={() => showComingSoon("영어 레벨")} />
         </Section>
 
         <Section title="구독 & 결제">
           <Row icon="card-outline" label="구독 관리" value={isPremium ? "Premium" : "Free"} onPress={() => router.push("/paywall")} />
-          <Row icon="bag-outline" label="아이템 샵" />
-          <Row icon="receipt-outline" label="구매 내역" />
+          <Row icon="bag-outline" label="아이템 샵" onPress={() => showComingSoon("아이템 샵")} />
+          <Row icon="receipt-outline" label="구매 내역" onPress={() => showComingSoon("구매 내역")} />
         </Section>
 
         <Section title="일반">
-          <Row icon="notifications-outline" label="알림 설정" />
-          <Row icon="shield-outline" label="개인정보 처리방침" />
-          <Row icon="document-text-outline" label="서비스 이용약관" />
-          <Row icon="help-circle-outline" label="고객센터" />
+          <Row icon="notifications-outline" label="알림 설정" onPress={() => showComingSoon("알림 설정")} />
+          <Row icon="shield-outline" label="개인정보 처리방침" onPress={() => showComingSoon("개인정보 처리방침")} />
+          <Row icon="document-text-outline" label="서비스 이용약관" onPress={() => showComingSoon("서비스 이용약관")} />
+          <Row icon="help-circle-outline" label="고객센터" onPress={() => showComingSoon("고객센터")} />
         </Section>
 
         <Section title="">

@@ -63,7 +63,11 @@ export default function CompleteScreen() {
           },
           lessonSchedule: s.lessonSchedule,
           isOnboarded: true,
-        }).catch((err) => console.error("Firestore save failed:", err));
+        }).catch((err) => {
+          console.error("Firestore save failed:", err);
+          // 저장 실패해도 앱 사용에는 지장 없음 — 다음 로그인 시 재시도 안내
+          // (자동 전환 타이머가 이미 진행 중이므로 Alert 대신 조용히 처리)
+        });
       }
 
       setPhase("done");

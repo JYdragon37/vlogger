@@ -317,7 +317,10 @@ export default function ChannelHomeScreen() {
           <View style={s.bannerArtLabel}>
             <Text style={s.bannerArtText}>CHANNEL ART</Text>
           </View>
-          <Pressable style={s.menuBtn}>
+          <Pressable
+            style={s.menuBtn}
+            onPress={() => Alert.alert("채널 메뉴", "채널 커스터마이징 기능은 곧 출시됩니다!")}
+          >
             <Ionicons name="ellipsis-vertical" size={18} color={C.gray1} />
           </Pressable>
         </View>

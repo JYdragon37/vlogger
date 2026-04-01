@@ -276,10 +276,12 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {/* 안내 메시지 */}
-          <Text style={styles.hint}>
-            Google 로그인은 Development Build에서 동작합니다
-          </Text>
+          {/* 개발 빌드 안내 — 프로덕션 빌드에서는 숨김 */}
+          {__DEV__ && (
+            <Text style={styles.hint}>
+              Google 로그인은 Development Build에서 동작합니다
+            </Text>
+          )}
 
           {/* 회원가입/로그인 토글 */}
           <TouchableOpacity

@@ -150,7 +150,7 @@ function EmmaCallModal({ visible, script, userName, englishLevel, onEnd }: EmmaC
   const startCall = async () => {
     endedRef.current = false;
     const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? "";
-    if (!apiKey) { Alert.alert("오류", "API 키가 없습니다."); onEnd(0); return; }
+    if (!apiKey) { Alert.alert("오류", "API 키가 없습니다."); onEnd(0, []); return; }
 
     await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
 
@@ -219,7 +219,7 @@ function EmmaCallModal({ visible, script, userName, englishLevel, onEnd }: EmmaC
       await session.connect(apiKey, buildEmmaPrompt({ userName, script: script.script, expressions: script.expressions, englishLevel }));
     } catch (err: any) {
       Alert.alert("연결 실패", err.message);
-      onEnd(0);
+      onEnd(0, []);
     }
   };
 
@@ -515,17 +515,30 @@ function LessonRewardModal({
 
 // ─── Cultural Note Component ────────────────────────────
 
+const BOLD_HIGHLIGHT_COLOR = "#D4F0D4";
+
 function BoldText({ text, style }: { text: string; style: any }) {
   const parts = text.split(/\*\*(.+?)\*\*/g);
   return (
     <Text style={style}>
       {parts.map((part, i) =>
-        i % 2 === 1 ? <Text key={i} style={[style, { fontWeight: "700", color: "#D4F0D4" }]}>{part}</Text>
-                    : <Text key={i}>{part}</Text>
+        i % 2 === 1
+          ? (
+            <Text
+              key={i}
+              style={[style, boldHighlightStyle]}
+            >
+              {part}
+            </Text>
+          )
+          : <Text key={i}>{part}</Text>
       )}
     </Text>
   );
 }
+
+// StyleSheet 외부에서 선언하면 숫자 ID 합성 시 color 덮어쓰기 방지
+const boldHighlightStyle = { fontWeight: "700" as const, color: BOLD_HIGHLIGHT_COLOR };
 
 function CulturalNoteCard({ culturalTitle, culturalNote, userName }: { culturalTitle?: string; culturalNote: string; userName: string }) {
   const termBlocks = culturalNote.split(/\n\n/).filter(Boolean);
@@ -641,6 +654,11 @@ function FlashcardQuiz({ expressions, onFinish }: { expressions: ExpressionWithE
   };
 
   const handleSubmit = () => {
+    // blanked.clean이 빈 문자열이면 phrase를 찾지 못한 것 — 빈 입력 정답 방지
+    if (!blanked.clean) {
+      advance();
+      return;
+    }
     const normalize = (s: string) => s.toLowerCase().trim().replace(/[.,!?]/g, "");
     const correct = normalize(userInput) === normalize(blanked.clean);
     setIsCorrect(correct);
@@ -749,11 +767,12 @@ function FlashcardQuiz({ expressions, onFinish }: { expressions: ExpressionWithE
 
 // ─── Lesson Content (script loaded) ─────────────────────
 
-function LessonContent({ script, onCallStart, onRegen, onQuizFinish }: {
+function LessonContent({ script, onCallStart, onRegen, onQuizFinish, isRegenerating }: {
   script: ScriptResult;
   onCallStart: () => void;
   onRegen: () => void;
   onQuizFinish?: () => void;
+  isRegenerating?: boolean;
 }) {
   const { userProfile } = useAppStore();
   const userName = userProfile.name || "학습자";
@@ -810,10 +829,16 @@ function LessonContent({ script, onCallStart, onRegen, onQuizFinish }: {
         <Ionicons name="chevron-forward" size={18} color={C.gray2} />
       </Pressable>
 
-      {/* Regen */}
-      <Pressable style={s.regenBtn} onPress={onRegen}>
+      {/* Regen — 생성 중에는 비활성화 */}
+      <Pressable
+        style={[s.regenBtn, isRegenerating && { opacity: 0.4 }]}
+        onPress={onRegen}
+        disabled={isRegenerating}
+      >
         <Ionicons name="refresh" size={16} color={C.gray2} />
-        <Text style={s.regenText}>다른 주제로 다시 생성</Text>
+        <Text style={s.regenText}>
+          {isRegenerating ? "생성 중..." : "다른 주제로 다시 생성"}
+        </Text>
       </Pressable>
     </View>
   );
@@ -835,6 +860,8 @@ export default function LessonScreen() {
   const [callVisible, setCallVisible] = useState(false);
   const [reward, setReward] = useState<LessonReward | null>(null);
   const [currentEpisodeId, setCurrentEpisodeId] = useState<string | null>(null);
+  // 재생성 요청 중 중복 호출 방지
+  const isFetchingRef = useRef(false);
 
   const steps = [
     { icon: "document-text-outline" as const, label: "스크립트 읽기", time: "2분" },
@@ -845,6 +872,8 @@ export default function LessonScreen() {
   ];
 
   const fetchScript = async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     setStatus("loading");
     setErrorMsg("");
     try {
@@ -862,6 +891,8 @@ export default function LessonScreen() {
     } catch (err: any) {
       setErrorMsg(err.message ?? "스크립트 생성에 실패했습니다.");
       setStatus("error");
+    } finally {
+      isFetchingRef.current = false;
     }
   };
 
@@ -1057,6 +1088,15 @@ export default function LessonScreen() {
                   });
                 });
               }
+
+              // 통화 시간 누적
+              const talkMinutes = Math.max(1, Math.round(callSeconds / 60));
+              useAppStore.setState((state) => ({
+                channelInfo: {
+                  ...state.channelInfo,
+                  totalTalkTimeMinutes: state.channelInfo.totalTalkTimeMinutes + talkMinutes,
+                },
+              }));
 
               // 구독자 증가
               const r = completeLesson();

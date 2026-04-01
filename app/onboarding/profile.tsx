@@ -64,7 +64,9 @@ export default function ProfileScreen() {
   const autoChannel = name ? `${name}'s English Vlog` : "";
   const displayChannel = channelName || autoChannel;
   const job = selectedJob === "기타" ? customJob : selectedJob;
-  const canNext = name.trim().length > 0 && selectedJob.length > 0 && selectedHobbies.length > 0;
+  // "기타" 선택 시 직접 입력 필드도 필수
+  const jobValid = selectedJob.length > 0 && (selectedJob !== "기타" || customJob.trim().length > 0);
+  const canNext = name.trim().length > 0 && jobValid && selectedHobbies.length > 0;
 
   const toggleHobby = (h: string) => {
     setSelectedHobbies((prev) =>
