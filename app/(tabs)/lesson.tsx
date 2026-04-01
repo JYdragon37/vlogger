@@ -1004,6 +1004,7 @@ export default function LessonScreen() {
                   phrase: e.phrase,
                   meaning: e.meaning || e.explanation,
                   nuance: e.explanation,
+                  example: e.example,
                 })),
               });
 

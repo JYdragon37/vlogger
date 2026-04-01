@@ -27,9 +27,10 @@ export interface UserProfile {
 }
 
 export interface ExpressionItem {
-  phrase: string;  // 영어 표현/문장
-  meaning: string; // 한국어 뜻
-  nuance: string;  // 뉘앙스 설명 (한국어, 1~2문장)
+  phrase: string;    // 영어 표현 (예: "stock up on")
+  meaning: string;   // example 문장의 한국어 해석
+  nuance: string;    // 표현의 한국어 설명 (뉘앙스)
+  example?: string;  // 영어 예문 (스크립트에서 해당 표현이 쓰인 문장)
 }
 
 export interface Scene {

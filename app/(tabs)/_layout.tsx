@@ -14,6 +14,7 @@ interface TabConfig {
 const tabs: TabConfig[] = [
   { name: "index", title: "채널홈", icon: "home-outline", iconFocused: "home" },
   { name: "lesson", title: "수업", icon: "book-outline", iconFocused: "book" },
+  { name: "review", title: "복습", icon: "layers-outline", iconFocused: "layers" },
   { name: "feedback", title: "피드백", icon: "chatbubble-outline", iconFocused: "chatbubble" },
   { name: "settings", title: "설정", icon: "settings-outline", iconFocused: "settings" },
 ];
